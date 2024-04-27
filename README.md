@@ -16,13 +16,21 @@ Ammo2
 Mode: Player
 Doom Skill: 5
 
-Rewards and Penalties:
+Rewards and Penalties in doom basic config. :
 +101 reward for killing a monster
 -5 penalty for missing a shot
 -1 penalty for each step taken
+Rewards and Penalties in doom defend config. :
++1 reward for killing a monster
+-1 penalty for each step taken
+
 
 To run the AI agent:
 
 Install the necessary dependencies listed in the requirements file.
+
+---> !cd github & git clone https://github.com/mwydmuch/ViZDoom
+ TO DOWNLOAD THE ENVIRONMENT CONFIGURATION FILES
+
 Train the agent using the provided training script.
 Evaluate the trained agent's performance in the game environment.
