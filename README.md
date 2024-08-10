@@ -34,3 +34,8 @@ Install the necessary dependencies listed in the requirements file.
 
 Train the agent using the provided training script.
 Evaluate the trained agent's performance in the game environment.
+
+
+## License
+
+This repository is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
