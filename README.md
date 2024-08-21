@@ -25,10 +25,6 @@ Rewards and Penalties in doom defend config. :
 -1 penalty for each step taken
 
 
-To run the AI agent:
-
-Install the necessary dependencies listed in the requirements file.
-
 ---> !cd github & git clone https://github.com/mwydmuch/ViZDoom
  TO DOWNLOAD THE ENVIRONMENT CONFIGURATION FILES
 
