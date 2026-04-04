@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Models{% endblock %}
+
+{% block content %}
+<div class="animate-slideIn">
+
+    <div class="page-header flex-between">
+        <div>
+            <h2><i class="fas fa-database text-primary"></i> Model Browser</h2>
+            <p>Browse, compare, and manage your trained models</p>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-secondary" id="btnCompare" disabled>
+                <i class="fas fa-columns"></i> Compare Selected (<span id="compareCount">0</span>)
+            </button>
+            <button class="btn btn-outline" id="btnRefreshModels">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Models Table -->
+    <div class="card mb-4" id="modelsTableCard">
+        <div class="card-header">
+            <h3><i class="fas fa-list text-secondary-c"></i> All Models</h3>
+            <span class="mono text-muted" id="modelCountBadge">0 models</span>
+        </div>
+
+        <div class="table-wrapper" id="modelsTableWrapper">
+            <table id="modelsTable">
+                <thead>
+                    <tr>
+                        <th style="width:40px;">
+                            <input type="checkbox" id="selectAllModels" title="Select for comparison">
+                        </th>
+                        <th>Name</th>
+                        <th>Scenario</th>
+                        <th>Timesteps</th>
+                        <th>Mean Reward</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="modelsTableBody">
+                    <!-- Populated by JS -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state hidden" id="modelsEmptyState">
+            <i class="fas fa-robot"></i>
+            <h3>No Models Found</h3>
+            <p>Train your first agent to see it listed here.</p>
+            <a href="/train" class="btn btn-primary mt-3"><i class="fas fa-play"></i> Start Training</a>
+        </div>
+    </div>
+
+    <!-- Model Comparison (hidden by default) -->
+    <div class="card hidden" id="comparisonSection">
+        <div class="card-header">
+            <h3><i class="fas fa-balance-scale text-secondary-c"></i> Model Comparison</h3>
+            <button class="btn btn-sm btn-outline" id="btnCloseComparison"><i class="fas fa-times"></i> Close</button>
+        </div>
+        <div class="comparison-wrapper" id="comparisonContent">
+            <!-- Populated by JS -->
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/models.js') }}"></script>
+{% endblock %}

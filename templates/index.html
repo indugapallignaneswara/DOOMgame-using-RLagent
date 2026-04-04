@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="animate-slideIn">
+
+    <!-- Hero Section -->
+    <div class="hero">
+        <h1><i class="fas fa-skull-crossbones"></i> DOOM RL COMMAND CENTER</h1>
+        <p>Train reinforcement learning agents to conquer DOOM. Configure scenarios, watch AI play, and evaluate model performance in real-time.</p>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-brain"></i></div>
+            <div class="stat-label">Active Trainings</div>
+            <div class="stat-value primary" id="activeTrainings">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-database"></i></div>
+            <div class="stat-label">Saved Models</div>
+            <div class="stat-value" id="savedModels">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-map"></i></div>
+            <div class="stat-label">Available Scenarios</div>
+            <div class="stat-value success" id="availableScenarios">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-clock"></i></div>
+            <div class="stat-label">Total Training Time</div>
+            <div class="stat-value" id="totalTrainingTime">0h</div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3><i class="fas fa-bolt text-primary"></i> Quick Actions</h3>
+        </div>
+        <div class="btn-group">
+            <a href="/train" class="btn btn-primary btn-lg">
+                <i class="fas fa-play"></i> Start Training
+            </a>
+            <a href="/play" class="btn btn-secondary btn-lg">
+                <i class="fas fa-gamepad"></i> Watch AI Play
+            </a>
+            <a href="/models" class="btn btn-outline btn-lg">
+                <i class="fas fa-database"></i> Browse Models
+            </a>
+            <a href="/evaluate" class="btn btn-outline btn-lg">
+                <i class="fas fa-chart-bar"></i> Evaluate
+            </a>
+        </div>
+    </div>
+
+    <!-- Content Grid -->
+    <div class="grid-2 mb-4">
+        <!-- Recent Activity -->
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-clock text-secondary-c"></i> Recent Activity</h3>
+            </div>
+            <div id="recentActivity">
+                <div class="episode-list">
+                    <div class="episode-item">
+                        <span class="ep-num"><i class="fas fa-info-circle text-secondary-c"></i></span>
+                        <span>No recent activity yet. Start a training session to see updates here.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Info -->
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-server text-primary"></i> System Info</h3>
+            </div>
+            <div class="episode-list">
+                <div class="episode-item">
+                    <span>SocketIO Status</span>
+                    <span class="ep-reward" id="dashSocketStatus">--</span>
+                </div>
+                <div class="episode-item">
+                    <span>Framework</span>
+                    <span class="ep-reward">Stable-Baselines3</span>
+                </div>
+                <div class="episode-item">
+                    <span>Algorithm</span>
+                    <span class="ep-reward">PPO</span>
+                </div>
+                <div class="episode-item">
+                    <span>Environment</span>
+                    <span class="ep-reward">ViZDoom</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scenario Overview -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-map text-primary"></i> Available Scenarios</h3>
+        </div>
+        <div class="scenario-grid" id="scenarioGrid">
+            <div class="scenario-card">
+                <div class="icon"><i class="fas fa-crosshairs"></i></div>
+                <h4>Basic</h4>
+                <p>Simple shoot-the-monster scenario. Learn to aim and fire at a single target.</p>
+            </div>
+            <div class="scenario-card">
+                <div class="icon"><i class="fas fa-running"></i></div>
+                <h4>Corridor</h4>
+                <p>Navigate a corridor while fighting enemies. Tests movement and combat.</p>
+            </div>
+            <div class="scenario-card">
+                <div class="icon"><i class="fas fa-shield-alt"></i></div>
+                <h4>Defend the Center</h4>
+                <p>Survive waves of enemies approaching from all sides. Defend your position.</p>
+            </div>
+            <div class="scenario-card">
+                <div class="icon"><i class="fas fa-heartbeat"></i></div>
+                <h4>Health Gathering</h4>
+                <p>Collect health packs on toxic floor. Learn resource management and navigation.</p>
+            </div>
+            <div class="scenario-card">
+                <div class="icon"><i class="fas fa-skull"></i></div>
+                <h4>Deathmatch</h4>
+                <p>Full deathmatch scenario with complex navigation and multiple enemies.</p>
+            </div>
+            <div class="scenario-card">
+                <div class="icon"><i class="fas fa-bomb"></i></div>
+                <h4>Deadly Corridor</h4>
+                <p>Reach the end of a corridor filled with dangerous enemies and traps.</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Fetch dashboard stats
+    fetch('/api/models')
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('savedModels').textContent = data.models ? data.models.length : 0;
+        })
+        .catch(() => {});
+
+    fetch('/api/scenarios')
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('availableScenarios').textContent = data.scenarios ? data.scenarios.length : 0;
+        })
+        .catch(() => {});
+
+    // Update socket status on dashboard
+    if (window.socket) {
+        window.socket.on('connect', () => {
+            document.getElementById('dashSocketStatus').textContent = 'Connected';
+            document.getElementById('dashSocketStatus').style.color = 'var(--success)';
+        });
+        window.socket.on('disconnect', () => {
+            document.getElementById('dashSocketStatus').textContent = 'Disconnected';
+            document.getElementById('dashSocketStatus').style.color = 'var(--danger)';
+        });
+    }
+});
+</script>
+{% endblock %}

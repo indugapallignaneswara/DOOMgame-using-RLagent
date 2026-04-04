@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+env/
+venv/
+.venv/
+
+# Training artifacts
+train/
+logs/
+*.zip
+
+# Model weights (large files)
+models/*.zip
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Environment
+.env

@@ -1,0 +1,10 @@
+flask
+flask-socketio
+vizdoom
+stable-baselines3
+gymnasium
+torch
+torchvision
+opencv-python-headless
+numpy
+tqdm

@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}Train{% endblock %}
+
+{% block content %}
+<div class="animate-slideIn">
+
+    <div class="page-header flex-between">
+        <div>
+            <h2><i class="fas fa-brain text-primary"></i> Training Configuration</h2>
+            <p>Configure hyperparameters and start training your RL agent</p>
+        </div>
+        <div class="btn-group" id="trainingControls">
+            <button class="btn btn-primary" id="btnStart"><i class="fas fa-play"></i> Start Training</button>
+            <button class="btn btn-secondary" id="btnPause" disabled><i class="fas fa-pause"></i> Pause</button>
+            <button class="btn btn-secondary" id="btnResume" disabled style="display:none;"><i class="fas fa-play"></i> Resume</button>
+            <button class="btn btn-danger" id="btnStop" disabled><i class="fas fa-stop"></i> Stop</button>
+        </div>
+    </div>
+
+    <div class="grid-2 mb-4">
+        <!-- Left: Configuration -->
+        <div>
+            <!-- Scenario Selection -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h3><i class="fas fa-map text-primary"></i> Scenario</h3>
+                    <button class="btn btn-sm btn-outline" id="btnLoadDefaults"><i class="fas fa-redo"></i> Load Defaults</button>
+                </div>
+                <div class="form-group mb-0">
+                    <label for="scenarioSelect">Select Scenario</label>
+                    <select class="form-control" id="scenarioSelect">
+                        <option value="">Loading scenarios...</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Hyperparameters -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h3><i class="fas fa-sliders-h text-secondary-c"></i> Hyperparameters</h3>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label for="learningRate">Learning Rate</label>
+                        <input type="number" class="form-control" id="learningRate" value="0.0001" step="0.00001" min="0.000001" max="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label for="nSteps">N Steps</label>
+                        <input type="number" class="form-control" id="nSteps" value="2048" step="128" min="64" max="8192">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="clipRange">Clip Range: <span class="range-value" id="clipRangeVal">0.20</span></label>
+                    <input type="range" id="clipRange" min="0.05" max="0.5" step="0.01" value="0.2">
+                </div>
+
+                <div class="form-group">
+                    <label for="gamma">Gamma (Discount): <span class="range-value" id="gammaVal">0.990</span></label>
+                    <input type="range" id="gamma" min="0.9" max="0.999" step="0.001" value="0.99">
+                </div>
+
+                <div class="form-group">
+                    <label for="gaeLambda">GAE Lambda: <span class="range-value" id="gaeLambdaVal">0.950</span></label>
+                    <input type="range" id="gaeLambda" min="0.8" max="1.0" step="0.01" value="0.95">
+                </div>
+
+                <div class="form-group mb-0">
+                    <label for="totalTimesteps">Total Timesteps</label>
+                    <input type="number" class="form-control" id="totalTimesteps" value="100000" step="10000" min="1000" max="10000000">
+                </div>
+            </div>
+
+            <!-- Reward Configuration -->
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="fas fa-trophy text-success"></i> Reward Configuration</h3>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label for="killReward">Kill Reward</label>
+                        <input type="number" class="form-control" id="killReward" value="1.0" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label for="missPenalty">Miss Penalty</label>
+                        <input type="number" class="form-control" id="missPenalty" value="-0.1" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label for="stepPenalty">Step Penalty</label>
+                        <input type="number" class="form-control" id="stepPenalty" value="-0.01" step="0.001">
+                    </div>
+                    <div class="form-group">
+                        <label for="damagePenalty">Damage Penalty</label>
+                        <input type="number" class="form-control" id="damagePenalty" value="-0.1" step="0.01">
+                    </div>
+                    <div class="form-group mb-0">
+                        <label for="ammoPenalty">Ammo Penalty</label>
+                        <input type="number" class="form-control" id="ammoPenalty" value="-0.1" step="0.01">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Live Metrics -->
+        <div>
+            <!-- Training Progress -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h3><i class="fas fa-tasks text-primary"></i> Training Progress</h3>
+                    <span class="mono text-muted" id="trainingStatusBadge">Idle</span>
+                </div>
+
+                <div class="flex-between mb-2">
+                    <span class="text-muted" style="font-size:0.85rem;">Timesteps</span>
+                    <span class="mono text-secondary-c" id="timestepDisplay">0 / 0</span>
+                </div>
+                <div class="progress-bar-wrapper">
+                    <div class="progress-bar-fill" id="trainingProgress"></div>
+                </div>
+
+                <div class="stats-grid mt-3" style="margin-bottom:0;">
+                    <div class="stat-card">
+                        <div class="stat-label">FPS</div>
+                        <div class="stat-value" id="fpsDisplay" style="font-size:1.4rem;">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Episode Reward (Mean)</div>
+                        <div class="stat-value primary" id="rewardDisplay" style="font-size:1.4rem;">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Episode Length (Mean)</div>
+                        <div class="stat-value success" id="epLenDisplay" style="font-size:1.4rem;">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Entropy Loss</div>
+                        <div class="stat-value" id="entropyDisplay" style="font-size:1.4rem;">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-line text-secondary-c"></i> Episode Reward</h3>
+                </div>
+                <div class="chart-container">
+                    <canvas id="rewardChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-area text-primary"></i> Loss</h3>
+                </div>
+                <div class="chart-container">
+                    <canvas id="lossChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Training Log -->
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="fas fa-terminal text-muted"></i> Training Log</h3>
+                    <button class="btn btn-sm btn-outline" id="btnClearLog"><i class="fas fa-trash"></i> Clear</button>
+                </div>
+                <div class="training-log" id="trainingLog">
+                    <div class="log-entry info">
+                        <span class="timestamp">[--:--:--]</span> Awaiting training start...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script src="{{ url_for('static', filename='js/training.js') }}"></script>
+{% endblock %}

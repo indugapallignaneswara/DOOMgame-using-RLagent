@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}DOOM RL{% endblock %} | DOOM RL Command Center</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- App Styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+
+    {% block head %}{% endblock %}
+</head>
+<body>
+
+    <!-- Mobile Menu Toggle -->
+    <button class="menu-toggle" id="menuToggle" aria-label="Toggle navigation">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <div class="app-wrapper">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-brand">
+                <h1><i class="fas fa-skull-crossbones"></i> DOOM RL</h1>
+                <div class="subtitle">Reinforcement Learning</div>
+            </div>
+
+            <nav class="sidebar-nav" id="sidebarNav">
+                <a href="/" data-page="dashboard">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a>
+                <a href="/train" data-page="train">
+                    <i class="fas fa-brain"></i> Train
+                </a>
+                <a href="/play" data-page="play">
+                    <i class="fas fa-gamepad"></i> Play
+                </a>
+                <a href="/models" data-page="models">
+                    <i class="fas fa-database"></i> Models
+                </a>
+                <a href="/evaluate" data-page="evaluate">
+                    <i class="fas fa-chart-bar"></i> Evaluate
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <span class="status-dot" id="connectionDot"></span>
+                <span id="connectionStatus">Connecting...</span>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Flash Messages -->
+            <div class="flash-messages" id="flashMessages">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="flash flash-{{ category }}">
+                                <i class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'error' %}exclamation-circle{% elif category == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %}"></i>
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+            </div>
+
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="spinner-overlay" id="loadingOverlay">
+        <div style="text-align:center;">
+            <div class="spinner"></div>
+            <p style="margin-top:16px;color:var(--text-secondary);font-size:0.9rem;" id="loadingText">Loading...</p>
+        </div>
+    </div>
+
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- App JS -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>
