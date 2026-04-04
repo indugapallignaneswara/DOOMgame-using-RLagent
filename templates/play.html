@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Play{% endblock %}
+
+{% block content %}
+<div class="animate-slideIn">
+
+    <div class="page-header">
+        <h2><i class="fas fa-gamepad text-primary"></i> AI Demo</h2>
+        <p>Watch your trained agent play DOOM in real-time</p>
+    </div>
+
+    <div class="grid-2 mb-4">
+        <!-- Left: Game View -->
+        <div>
+            <!-- Controls -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h3><i class="fas fa-cog text-secondary-c"></i> Demo Controls</h3>
+                </div>
+
+                <div class="grid-2 mb-2">
+                    <div class="form-group">
+                        <label for="modelSelect">Select Model</label>
+                        <select class="form-control" id="modelSelect">
+                            <option value="">Loading models...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="playScenarioSelect">Scenario</label>
+                        <select class="form-control" id="playScenarioSelect" disabled>
+                            <option value="">Auto-detected from model</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group mb-2">
+                    <label for="speedSlider">Frame Delay: <span class="range-value" id="speedVal">0.05s</span></label>
+                    <input type="range" id="speedSlider" min="0.01" max="0.2" step="0.01" value="0.05">
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-primary" id="btnStartDemo"><i class="fas fa-play"></i> Start Demo</button>
+                    <button class="btn btn-danger" id="btnStopDemo" disabled><i class="fas fa-stop"></i> Stop Demo</button>
+                </div>
+            </div>
+
+            <!-- Game Canvas -->
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="fas fa-tv text-primary"></i> Game View</h3>
+                    <span class="mono text-muted" id="demoStatusBadge">Idle</span>
+                </div>
+                <div class="game-container" id="gameContainer">
+                    <canvas id="gameCanvas" width="640" height="480"></canvas>
+                    <div class="overlay-text" id="gameOverlay">Select a model and press Start</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Stats & History -->
+        <div>
+            <!-- Live Stats -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-line text-secondary-c"></i> Live Stats</h3>
+                </div>
+                <div class="stats-grid" style="margin-bottom:0;">
+                    <div class="stat-card">
+                        <div class="stat-label">Current Reward</div>
+                        <div class="stat-value primary" id="currentReward" style="font-size:1.4rem;">0.0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Reward</div>
+                        <div class="stat-value" id="totalReward" style="font-size:1.4rem;">0.0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Step #</div>
+                        <div class="stat-value success" id="stepCount" style="font-size:1.4rem;">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Episode #</div>
+                        <div class="stat-value" id="episodeCount" style="font-size:1.4rem;">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Episode History -->
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="fas fa-history text-primary"></i> Episode History</h3>
+                </div>
+                <div class="episode-list" id="episodeHistory">
+                    <div class="empty-state" style="padding:30px;">
+                        <i class="fas fa-inbox"></i>
+                        <p>Episode rewards will appear here as the agent completes episodes.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/player.js') }}"></script>
+{% endblock %}

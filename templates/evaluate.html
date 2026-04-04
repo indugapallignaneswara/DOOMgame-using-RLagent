@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% block title %}Evaluate{% endblock %}
+
+{% block content %}
+<div class="animate-slideIn">
+
+    <div class="page-header">
+        <h2><i class="fas fa-chart-bar text-primary"></i> Model Evaluation</h2>
+        <p>Evaluate model performance across multiple episodes</p>
+    </div>
+
+    <div class="grid-2 mb-4">
+        <!-- Left: Config -->
+        <div>
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="fas fa-cog text-secondary-c"></i> Evaluation Settings</h3>
+                </div>
+
+                <div class="form-group">
+                    <label for="evalModelSelect">Select Model</label>
+                    <select class="form-control" id="evalModelSelect">
+                        <option value="">Loading models...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="evalScenarioSelect">Scenario</label>
+                    <select class="form-control" id="evalScenarioSelect" disabled>
+                        <option value="">Auto-detected from model</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="evalEpisodes">Number of Episodes</label>
+                    <input type="number" class="form-control" id="evalEpisodes" value="10" min="1" max="100">
+                </div>
+
+                <button class="btn btn-primary btn-lg" id="btnRunEval" style="width:100%;">
+                    <i class="fas fa-flask"></i> Run Evaluation
+                </button>
+            </div>
+        </div>
+
+        <!-- Right: Results -->
+        <div>
+            <!-- Loading state -->
+            <div class="card hidden" id="evalLoading" style="text-align:center;padding:60px 24px;">
+                <div class="spinner-inline"></div>
+                <span style="color:var(--text-secondary);font-size:0.95rem;">Running evaluation... <span id="evalProgressText">0/0 episodes</span></span>
+                <div class="progress-bar-wrapper mt-3">
+                    <div class="progress-bar-fill active" id="evalProgressBar"></div>
+                </div>
+            </div>
+
+            <!-- Results Stats -->
+            <div class="hidden" id="evalResults">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Mean Reward</div>
+                        <div class="stat-value primary" id="evalMeanReward" style="font-size:1.4rem;">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Std Deviation</div>
+                        <div class="stat-value" id="evalStdDev" style="font-size:1.4rem;">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Min Reward</div>
+                        <div class="stat-value" id="evalMinReward" style="font-size:1.4rem;">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Max Reward</div>
+                        <div class="stat-value success" id="evalMaxReward" style="font-size:1.4rem;">--</div>
+                    </div>
+                </div>
+
+                <!-- Per-Episode Bar Chart -->
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h3><i class="fas fa-chart-bar text-secondary-c"></i> Per-Episode Rewards</h3>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="evalBarChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Episode Length Distribution -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-ruler-horizontal text-primary"></i> Episode Length Distribution</h3>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="evalLengthChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Initial state -->
+            <div class="card" id="evalInitial">
+                <div class="empty-state">
+                    <i class="fas fa-flask"></i>
+                    <h3>Ready to Evaluate</h3>
+                    <p>Select a model and click Run Evaluation to test agent performance across multiple episodes.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const socket = window.socket;
+    const modelSelect   = document.getElementById('evalModelSelect');
+    const scenarioSelect= document.getElementById('evalScenarioSelect');
+    const btnRun        = document.getElementById('btnRunEval');
+    const loadingEl     = document.getElementById('evalLoading');
+    const resultsEl     = document.getElementById('evalResults');
+    const initialEl     = document.getElementById('evalInitial');
+    const progressBar   = document.getElementById('evalProgressBar');
+    const progressText  = document.getElementById('evalProgressText');
+
+    let evalBarChart = null;
+    let evalLengthChart = null;
+
+    // Load models
+    fetch('/api/models')
+        .then(r => r.json())
+        .then(data => {
+            modelSelect.innerHTML = '<option value="">-- Select Model --</option>';
+            if (data.models && data.models.length > 0) {
+                data.models.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m.name || m.path;
+                    opt.textContent = m.name + (m.scenario ? ' (' + m.scenario + ')' : '');
+                    opt.dataset.scenario = m.scenario || '';
+                    modelSelect.appendChild(opt);
+                });
+            }
+        })
+        .catch(() => {
+            modelSelect.innerHTML = '<option value="">No models available</option>';
+        });
+
+    // Auto-fill scenario on model change
+    modelSelect.addEventListener('change', function() {
+        const selected = modelSelect.options[modelSelect.selectedIndex];
+        if (selected && selected.dataset.scenario) {
+            scenarioSelect.innerHTML = '<option value="' + selected.dataset.scenario + '">' + selected.dataset.scenario + '</option>';
+        }
+    });
+
+    // Run Evaluation
+    btnRun.addEventListener('click', function() {
+        const model = modelSelect.value;
+        const episodes = parseInt(document.getElementById('evalEpisodes').value) || 10;
+        if (!model) {
+            window.showToast('Please select a model first.', 'warning');
+            return;
+        }
+
+        // Show loading
+        initialEl.classList.add('hidden');
+        resultsEl.classList.add('hidden');
+        loadingEl.classList.remove('hidden');
+        progressBar.style.width = '0%';
+        progressText.textContent = '0/' + episodes + ' episodes';
+        btnRun.disabled = true;
+
+        socket.emit('start_evaluation', {
+            model: model,
+            scenario: scenarioSelect.value,
+            episodes: episodes
+        });
+    });
+
+    // Evaluation progress
+    socket.on('evaluation_progress', function(data) {
+        const pct = (data.current / data.total * 100).toFixed(0);
+        progressBar.style.width = pct + '%';
+        progressText.textContent = data.current + '/' + data.total + ' episodes';
+    });
+
+    // Evaluation complete
+    socket.on('evaluation_complete', function(data) {
+        loadingEl.classList.add('hidden');
+        resultsEl.classList.remove('hidden');
+        btnRun.disabled = false;
+
+        // Update stat cards
+        document.getElementById('evalMeanReward').textContent = (data.mean_reward || 0).toFixed(2);
+        document.getElementById('evalStdDev').textContent = (data.std_reward || 0).toFixed(2);
+        document.getElementById('evalMinReward').textContent = (data.min_reward || 0).toFixed(2);
+        document.getElementById('evalMaxReward').textContent = (data.max_reward || 0).toFixed(2);
+
+        // Per-episode rewards bar chart
+        const rewards = data.episode_rewards || [];
+        const lengths = data.episode_lengths || [];
+        const labels = rewards.map((_, i) => 'Ep ' + (i + 1));
+
+        if (evalBarChart) evalBarChart.destroy();
+        evalBarChart = createEvalBarChart('evalBarChart', labels, rewards, 'Episode Reward');
+
+        if (evalLengthChart) evalLengthChart.destroy();
+        evalLengthChart = createEvalBarChart('evalLengthChart', labels, lengths, 'Episode Length');
+    });
+
+    // Evaluation error
+    socket.on('evaluation_error', function(data) {
+        loadingEl.classList.add('hidden');
+        initialEl.classList.remove('hidden');
+        btnRun.disabled = false;
+        window.showToast('Evaluation error: ' + (data.message || 'Unknown error'), 'error');
+    });
+});
+</script>
+{% endblock %}
