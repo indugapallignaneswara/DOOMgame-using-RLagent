@@ -10,6 +10,7 @@ import numpy as np
 from stable_baselines3 import PPO
 
 from doom.environment import VizDoomGym
+from doom.scenarios import get_scenario
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ class AIPlayer:
             self.active_demos[session_id] = {
                 "stop_flag": stop_flag,
                 "status": "running",
+                "speed": speed,
             }
 
         thread = threading.Thread(
@@ -39,12 +41,22 @@ class AIPlayer:
         )
         thread.start()
 
+    def set_demo_speed(self, session_id, speed):
+        """Update the playback speed for a running demo."""
+        with self._lock:
+            if session_id in self.active_demos:
+                self.active_demos[session_id]["speed"] = max(0.01, min(0.5, speed))
+
     def _demo_worker(self, session_id, model_path, scenario_key, speed, stop_flag):
         """Background worker that runs the AI and streams frames."""
         env = None
         try:
             logger.info(f"[Demo {session_id}] Loading model: {model_path}")
             model = PPO.load(model_path)
+
+            # Load scenario config to get button names
+            scenario_cfg = get_scenario(scenario_key)
+            button_names = scenario_cfg.get("buttons", [])
 
             env = VizDoomGym(scenario_key, render=False)
 
@@ -63,10 +75,14 @@ class AIPlayer:
 
                 while not done and not stop_flag.is_set():
                     action, _ = model.predict(obs, deterministic=True)
+                    action_int = int(action)
                     obs, reward, terminated, truncated, info = env.step(action)
                     done = terminated or truncated
                     total_reward += reward
                     step += 1
+
+                    # Determine action name
+                    action_name = button_names[action_int] if action_int < len(button_names) else f"ACTION_{action_int}"
 
                     # Get raw frame and encode
                     raw_frame = env.get_raw_frame()
@@ -79,11 +95,18 @@ class AIPlayer:
                             "total_reward": round(float(total_reward), 2),
                             "step": step,
                             "episode": episode,
+                            "done": done,
+                            "action": action_int,
+                            "action_name": action_name,
+                            "buttons": button_names,
                             "info": {k: round(float(v), 1) if isinstance(v, (int, float)) else v
                                      for k, v in info.items()},
                         })
 
-                    time.sleep(speed)
+                    # Use the potentially updated speed
+                    with self._lock:
+                        current_speed = self.active_demos.get(session_id, {}).get("speed", speed)
+                    time.sleep(current_speed)
 
                 # Episode finished
                 self.socketio.emit("demo_episode_end", {

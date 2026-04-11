@@ -1,5 +1,5 @@
 /* ============================================================
-   DOOM RL – Models Page JS
+   ARENA OF RL - Models Page JS
    ============================================================ */
 
 (function () {
@@ -11,14 +11,18 @@
     var countBadge    = document.getElementById('modelCountBadge');
     var btnCompare    = document.getElementById('btnCompare');
     var btnRefresh    = document.getElementById('btnRefreshModels');
+    var btnCardView   = document.getElementById('btnCardView');
+    var btnTableView  = document.getElementById('btnTableView');
     var compareCount  = document.getElementById('compareCount');
     var compSection   = document.getElementById('comparisonSection');
     var compContent   = document.getElementById('comparisonContent');
     var btnCloseCmp   = document.getElementById('btnCloseComparison');
     var selectAll     = document.getElementById('selectAllModels');
+    var cardContainer = document.getElementById('modelsCardContainer');
 
     var modelsData   = [];
     var selectedIds  = [];
+    var viewMode     = 'table';
 
     // ---- Fetch & Render ----
     function loadModels() {
@@ -41,48 +45,121 @@
 
         if (modelsData.length === 0) {
             tableWrapper.classList.add('hidden');
+            if (cardContainer) cardContainer.classList.add('hidden');
             emptyState.classList.remove('hidden');
             countBadge.textContent = '0 models';
             return;
         }
 
-        tableWrapper.classList.remove('hidden');
         emptyState.classList.add('hidden');
         countBadge.textContent = modelsData.length + ' model' + (modelsData.length !== 1 ? 's' : '');
+
+        if (viewMode === 'table') {
+            renderTableView();
+        } else {
+            renderCardView();
+        }
+    }
+
+    function renderTableView() {
+        tableWrapper.classList.remove('hidden');
+        if (cardContainer) cardContainer.classList.add('hidden');
 
         tableBody.innerHTML = '';
         modelsData.forEach(function (model, idx) {
             var tr = document.createElement('tr');
+            // BUG-008 FIX: use total_timesteps and created_at
             tr.innerHTML =
                 '<td><input type="checkbox" class="model-check" data-idx="' + idx + '"></td>' +
                 '<td><strong>' + escHtml(model.name || 'Unnamed') + '</strong></td>' +
                 '<td>' + escHtml(model.scenario || '--') + '</td>' +
-                '<td class="mono">' + window.formatNumber(model.timesteps || 0, 0) + '</td>' +
+                '<td class="mono">' + window.formatNumber(model.total_timesteps || 0, 0) + '</td>' +
                 '<td class="mono" style="color:var(--secondary);">' + window.formatNumber(model.mean_reward, 2) + '</td>' +
-                '<td class="text-muted">' + escHtml(model.created || '--') + '</td>' +
+                '<td class="text-muted">' + formatDate(model.created_at) + '</td>' +
                 '<td>' +
                     '<div class="btn-group">' +
-                        '<a href="/play?model=' + encodeURIComponent(model.name || model.path || '') + '" class="btn btn-sm btn-secondary"><i class="fas fa-gamepad"></i> Demo</a>' +
-                        '<a href="/evaluate?model=' + encodeURIComponent(model.name || model.path || '') + '" class="btn btn-sm btn-outline"><i class="fas fa-chart-bar"></i> Eval</a>' +
-                        '<button class="btn btn-sm btn-danger btn-delete" data-name="' + escAttr(model.name || '') + '"><i class="fas fa-trash"></i></button>' +
+                        '<a href="/play?model=' + encodeURIComponent(model.id || '') + '" class="btn btn-sm btn-secondary"><i class="fas fa-gamepad"></i> Demo</a>' +
+                        '<a href="/evaluate?model=' + encodeURIComponent(model.id || '') + '" class="btn btn-sm btn-outline"><i class="fas fa-chart-bar"></i> Eval</a>' +
+                        '<button class="btn btn-sm btn-danger btn-delete" data-id="' + escAttr(model.id || '') + '" data-name="' + escAttr(model.name || '') + '"><i class="fas fa-trash"></i></button>' +
                     '</div>' +
                 '</td>';
             tableBody.appendChild(tr);
         });
 
-        // Wire checkbox listeners
+        wireListeners();
+    }
+
+    function renderCardView() {
+        tableWrapper.classList.add('hidden');
+        if (!cardContainer) return;
+        cardContainer.classList.remove('hidden');
+
+        cardContainer.innerHTML = '';
+        modelsData.forEach(function (model, idx) {
+            var rewardColor = (model.mean_reward || 0) >= 0 ? 'var(--success)' : 'var(--danger)';
+            var card = document.createElement('div');
+            card.className = 'model-card animate-slideIn';
+            // BUG-008 FIX: use total_timesteps and created_at
+            card.innerHTML =
+                '<div class="model-card-header">' +
+                    '<h4>' + escHtml(model.name || 'Unnamed') + '</h4>' +
+                    '<span class="cfg-tag">' + escHtml(model.scenario || 'unknown') + '</span>' +
+                '</div>' +
+                '<div class="model-card-stats">' +
+                    '<div class="model-card-stat">' +
+                        '<span class="label">Reward</span>' +
+                        '<span class="value" style="color:' + rewardColor + ';">' + window.formatNumber(model.mean_reward, 2) + '</span>' +
+                    '</div>' +
+                    '<div class="model-card-stat">' +
+                        '<span class="label">Timesteps</span>' +
+                        '<span class="value">' + window.formatNumber(model.total_timesteps || 0, 0) + '</span>' +
+                    '</div>' +
+                    '<div class="model-card-stat">' +
+                        '<span class="label">Created</span>' +
+                        '<span class="value">' + formatDate(model.created_at) + '</span>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="model-card-actions">' +
+                    '<a href="/play?model=' + encodeURIComponent(model.id || '') + '" class="btn btn-sm btn-primary"><i class="fas fa-gamepad"></i> Play</a>' +
+                    '<a href="/evaluate?model=' + encodeURIComponent(model.id || '') + '" class="btn btn-sm btn-outline"><i class="fas fa-chart-bar"></i> Eval</a>' +
+                    '<button class="btn btn-sm btn-danger btn-delete" data-id="' + escAttr(model.id || '') + '" data-name="' + escAttr(model.name || '') + '"><i class="fas fa-trash"></i></button>' +
+                '</div>';
+            cardContainer.appendChild(card);
+        });
+
+        wireListeners();
+    }
+
+    function wireListeners() {
         document.querySelectorAll('.model-check').forEach(function (cb) {
             cb.addEventListener('change', onCheckboxChange);
         });
-
-        // Wire delete buttons
         document.querySelectorAll('.btn-delete').forEach(function (btn) {
             btn.addEventListener('click', function () {
+                var id = this.dataset.id;
                 var name = this.dataset.name;
                 if (confirm('Delete model "' + name + '"? This cannot be undone.')) {
-                    deleteModel(name);
+                    deleteModel(id);
                 }
             });
+        });
+    }
+
+    // ---- View Toggle ----
+    if (btnCardView) {
+        btnCardView.addEventListener('click', function () {
+            viewMode = 'card';
+            btnCardView.classList.add('active');
+            if (btnTableView) btnTableView.classList.remove('active');
+            renderModels();
+        });
+    }
+    if (btnTableView) {
+        btnTableView.addEventListener('click', function () {
+            viewMode = 'table';
+            btnTableView.classList.add('active');
+            if (btnCardView) btnCardView.classList.remove('active');
+            renderModels();
         });
     }
 
@@ -111,15 +188,15 @@
     }
 
     // ---- Delete Model ----
-    function deleteModel(name) {
-        fetch('/api/models/' + encodeURIComponent(name), { method: 'DELETE' })
+    function deleteModel(id) {
+        fetch('/api/models/' + encodeURIComponent(id), { method: 'DELETE' })
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 if (data.success) {
-                    window.showToast('Model "' + name + '" deleted.', 'success');
+                    window.showToast('Model deleted.', 'success');
                     loadModels();
                 } else {
-                    window.showToast('Failed to delete model: ' + (data.message || ''), 'error');
+                    window.showToast('Failed to delete model: ' + (data.error || data.message || ''), 'error');
                 }
             })
             .catch(function () {
@@ -147,12 +224,13 @@
     }
 
     function buildComparisonCard(model) {
+        // BUG-008 FIX: use total_timesteps and created_at
         return '<div class="comparison-card">' +
             '<h4>' + escHtml(model.name || 'Unnamed') + '</h4>' +
             compRow('Scenario',   model.scenario || '--') +
-            compRow('Timesteps',  window.formatNumber(model.timesteps || 0, 0)) +
+            compRow('Timesteps',  window.formatNumber(model.total_timesteps || 0, 0)) +
             compRow('Mean Reward', window.formatNumber(model.mean_reward, 2)) +
-            compRow('Created',    model.created || '--') +
+            compRow('Created',    formatDate(model.created_at)) +
             compRow('Algorithm',  model.algorithm || 'PPO') +
             '</div>';
     }
@@ -178,6 +256,15 @@
     }
     function escAttr(str) {
         return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+    function formatDate(dateStr) {
+        if (!dateStr || dateStr === '--') return '--';
+        try {
+            var d = new Date(dateStr);
+            return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        } catch(e) {
+            return dateStr;
+        }
     }
 
     // ---- Init ----

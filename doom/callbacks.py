@@ -14,11 +14,13 @@ class WebTrainingCallback(BaseCallback):
     Supports pause/resume via threading.Event and stop via threading.Event flag.
     """
 
-    def __init__(self, socketio, session_id, emit_freq=50, check_freq=10000,
-                 save_path="train", pause_event=None, stop_flag=None, verbose=0):
+    def __init__(self, socketio, session_id, total_timesteps=0, emit_freq=50,
+                 check_freq=10000, save_path="train", pause_event=None,
+                 stop_flag=None, verbose=0):
         super().__init__(verbose)
         self.socketio = socketio
         self.session_id = session_id
+        self._total_timesteps_target = total_timesteps
         self.emit_freq = emit_freq
         self.check_freq = check_freq
         self.save_path = save_path
@@ -28,6 +30,8 @@ class WebTrainingCallback(BaseCallback):
         self._last_emit_time = 0
         self._episode_rewards = []
         self._recent_rewards = []
+        self._episode_lengths = []
+        self._recent_lengths = []
 
     def _on_training_start(self):
         self._start_time = time.time()
@@ -50,37 +54,54 @@ class WebTrainingCallback(BaseCallback):
             for info in self.locals["infos"]:
                 if "episode" in info:
                     ep_reward = info["episode"]["r"]
+                    ep_length = info["episode"]["l"]
                     self._episode_rewards.append(ep_reward)
                     self._recent_rewards.append(ep_reward)
+                    self._episode_lengths.append(ep_length)
+                    self._recent_lengths.append(ep_length)
                     if len(self._recent_rewards) > 100:
                         self._recent_rewards = self._recent_rewards[-100:]
+                    if len(self._recent_lengths) > 100:
+                        self._recent_lengths = self._recent_lengths[-100:]
 
         # Emit metrics periodically
         if self.n_calls % self.emit_freq == 0:
             elapsed = time.time() - self._start_time if self._start_time else 1
             fps = self.num_timesteps / max(elapsed, 0.001)
+            total = self._total_timesteps_target or getattr(self.model, '_total_timesteps', 0)
 
             metrics = {
                 "session_id": self.session_id,
-                "timestep": self.num_timesteps,
+                "timesteps": self.num_timesteps,
+                "total_timesteps": total,
                 "fps": round(fps, 1),
+                "elapsed_time": round(elapsed, 1),
                 "total_episodes": len(self._episode_rewards),
             }
 
             if self._recent_rewards:
-                metrics["ep_reward_mean"] = round(sum(self._recent_rewards) / len(self._recent_rewards), 2)
+                metrics["ep_reward_mean"] = round(
+                    sum(self._recent_rewards) / len(self._recent_rewards), 2)
                 metrics["ep_reward_latest"] = round(self._recent_rewards[-1], 2)
 
-            # Try to get loss from logger
+            if self._recent_lengths:
+                metrics["ep_len_mean"] = round(
+                    sum(self._recent_lengths) / len(self._recent_lengths), 0)
+
+            # Extract losses and entropy from SB3 logger
             if hasattr(self, "logger") and self.logger is not None:
                 try:
-                    name_to_value = self.logger.name_to_value
-                    if "train/loss" in name_to_value:
-                        metrics["loss"] = round(name_to_value["train/loss"], 4)
-                    if "train/policy_gradient_loss" in name_to_value:
-                        metrics["pg_loss"] = round(name_to_value["train/policy_gradient_loss"], 6)
-                    if "train/value_loss" in name_to_value:
-                        metrics["value_loss"] = round(name_to_value["train/value_loss"], 4)
+                    nv = self.logger.name_to_value
+                    if "train/loss" in nv:
+                        metrics["loss"] = round(nv["train/loss"], 4)
+                    if "train/policy_gradient_loss" in nv:
+                        metrics["policy_loss"] = round(nv["train/policy_gradient_loss"], 6)
+                    if "train/value_loss" in nv:
+                        metrics["value_loss"] = round(nv["train/value_loss"], 4)
+                    if "train/entropy_loss" in nv:
+                        metrics["entropy_loss"] = round(nv["train/entropy_loss"], 4)
+                    if "train/clip_fraction" in nv:
+                        metrics["clip_fraction"] = round(nv["train/clip_fraction"], 4)
                 except Exception:
                     pass
 
@@ -94,7 +115,7 @@ class WebTrainingCallback(BaseCallback):
             self.socketio.emit("training_checkpoint", {
                 "session_id": self.session_id,
                 "path": model_path,
-                "timestep": self.num_timesteps,
+                "timesteps": self.num_timesteps,
             })
 
         return True

@@ -39,6 +39,10 @@ def get_player():
 # ─── Model Registry Helpers ───
 
 registry_lock = threading.Lock()
+history_lock = threading.Lock()
+
+HISTORY_PATH = os.path.join(os.path.dirname(__file__), "models", "training_history.json")
+USERS_PATH = os.path.join(os.path.dirname(__file__), "models", "users.json")
 
 def load_registry():
     with registry_lock:
@@ -53,6 +57,44 @@ def save_registry(data):
         with open(config.REGISTRY_PATH, "w") as f:
             json.dump(data, f, indent=2)
 
+def load_history():
+    with history_lock:
+        if os.path.exists(HISTORY_PATH):
+            with open(HISTORY_PATH, "r") as f:
+                return json.load(f)
+        return {"sessions": []}
+
+def save_history(data):
+    with history_lock:
+        with open(HISTORY_PATH, "w") as f:
+            json.dump(data, f, indent=2)
+
+def save_training_session(session_data):
+    """Append or update a training session in history."""
+    history = load_history()
+    # Update existing or append
+    found = False
+    for i, s in enumerate(history["sessions"]):
+        if s["session_id"] == session_data["session_id"]:
+            history["sessions"][i] = session_data
+            found = True
+            break
+    if not found:
+        history["sessions"].insert(0, session_data)
+    # Keep last 100 sessions
+    history["sessions"] = history["sessions"][:100]
+    save_history(history)
+
+def load_users():
+    if os.path.exists(USERS_PATH):
+        with open(USERS_PATH, "r") as f:
+            return json.load(f)
+    return {"users": []}
+
+def save_users(data):
+    with open(USERS_PATH, "w") as f:
+        json.dump(data, f, indent=2)
+
 # ─── HTTP Routes ───
 
 @app.route("/")
@@ -65,7 +107,13 @@ def index():
 
 @app.route("/train")
 def train_page():
-    return render_template("train.html")
+    from doom.scenarios import SCENARIOS, list_scenarios
+    first_key = list_scenarios()[0] if list_scenarios() else "basic"
+    first = SCENARIOS.get(first_key, {})
+    hp = first.get("default_hyperparams", {})
+    rw = first.get("reward_defaults", {})
+    defaults = {**hp, **rw, "scenario": first_key}
+    return render_template("train.html", defaults=defaults)
 
 @app.route("/play")
 def play_page():
@@ -84,12 +132,27 @@ def evaluate_page():
 @app.route("/api/scenarios")
 def api_scenarios():
     from doom.scenarios import SCENARIOS
-    return jsonify(SCENARIOS)
+    scenarios_list = []
+    for key, val in SCENARIOS.items():
+        entry = {
+            "id": key,
+            "name": key.replace("_", " ").title(),
+            "description": val.get("description", ""),
+            "num_actions": val.get("num_actions", 0),
+            "defaults": {},
+        }
+        # Merge hyperparams and reward defaults into a single defaults dict
+        if "default_hyperparams" in val:
+            entry["defaults"].update(val["default_hyperparams"])
+        if "reward_defaults" in val:
+            entry["defaults"].update(val["reward_defaults"])
+        scenarios_list.append(entry)
+    return jsonify({"scenarios": scenarios_list})
 
 @app.route("/api/models")
 def api_models():
     registry = load_registry()
-    return jsonify(registry["models"])
+    return jsonify({"models": registry["models"]})
 
 @app.route("/api/models/<model_id>")
 def api_model_detail(model_id):
@@ -129,6 +192,78 @@ def api_training_status():
         statuses[sid] = info.get("status", "unknown")
     return jsonify(statuses)
 
+# ─── Training History API ───
+
+@app.route("/api/training/history")
+def api_training_history():
+    history = load_history()
+    user = request.args.get("user")
+    if user:
+        history["sessions"] = [s for s in history["sessions"] if s.get("user") == user]
+    return jsonify(history)
+
+@app.route("/api/training/history/<session_id>")
+def api_training_session(session_id):
+    history = load_history()
+    for s in history["sessions"]:
+        if s["session_id"] == session_id:
+            return jsonify(s)
+    return jsonify({"error": "Session not found"}), 404
+
+# ─── User Profile API ───
+
+@app.route("/api/users/register", methods=["POST"])
+def api_register_user():
+    data = request.get_json()
+    username = data.get("username", "").strip()
+    if not username or len(username) < 2:
+        return jsonify({"error": "Username must be at least 2 characters"}), 400
+
+    users = load_users()
+    # Check if username taken
+    for u in users["users"]:
+        if u["username"].lower() == username.lower():
+            return jsonify({"error": "Username already taken"}), 409
+
+    from datetime import datetime
+    user = {
+        "id": str(uuid.uuid4())[:8],
+        "username": username,
+        "created_at": datetime.now().isoformat(),
+        "models_trained": 0,
+        "total_timesteps": 0,
+    }
+    users["users"].append(user)
+    save_users(users)
+    return jsonify(user), 201
+
+@app.route("/api/users/login", methods=["POST"])
+def api_login_user():
+    data = request.get_json()
+    username = data.get("username", "").strip()
+    users = load_users()
+    for u in users["users"]:
+        if u["username"].lower() == username.lower():
+            return jsonify(u)
+    return jsonify({"error": "User not found"}), 404
+
+@app.route("/api/users/<user_id>/stats")
+def api_user_stats(user_id):
+    users = load_users()
+    for u in users["users"]:
+        if u["id"] == user_id:
+            # Count models and sessions
+            registry = load_registry()
+            history = load_history()
+            user_models = [m for m in registry["models"] if m.get("user") == u["username"]]
+            user_sessions = [s for s in history["sessions"] if s.get("user") == u["username"]]
+            return jsonify({
+                **u,
+                "models_count": len(user_models),
+                "sessions_count": len(user_sessions),
+            })
+    return jsonify({"error": "User not found"}), 404
+
 # ─── SocketIO Events ───
 
 @socketio.on("connect")
@@ -142,9 +277,11 @@ def handle_disconnect():
 @socketio.on("start_training")
 def handle_start_training(data):
     try:
+        from datetime import datetime
         session_id = str(uuid.uuid4())[:8]
         scenario_key = data.get("scenario", "basic")
         total_timesteps = int(data.get("total_timesteps", 100000))
+        username = data.get("user", "anonymous")
 
         hyperparams = {
             "learning_rate": float(data.get("learning_rate", 0.0001)),
@@ -162,11 +299,27 @@ def handle_start_training(data):
             "ammo_penalty": float(data.get("ammo_penalty", 0)),
         }
 
+        # Save session to history
+        save_training_session({
+            "session_id": session_id,
+            "user": username,
+            "scenario": scenario_key,
+            "status": "started",
+            "total_timesteps": total_timesteps,
+            "hyperparams": hyperparams,
+            "reward_config": reward_config,
+            "started_at": datetime.now().isoformat(),
+            "finished_at": None,
+            "mean_reward": None,
+            "total_episodes": 0,
+        })
+
+        # Emit "started" FIRST so the frontend creates the tab immediately
+        emit("training_status", {"session_id": session_id, "status": "started", "scenario": scenario_key})
+
         t = get_trainer()
         t.start_training(session_id, scenario_key, hyperparams, reward_config, total_timesteps)
-
-        emit("training_status", {"session_id": session_id, "status": "started", "scenario": scenario_key})
-        logger.info(f"Training started: {session_id} on {scenario_key}")
+        logger.info(f"Training started: {session_id} on {scenario_key} by {username}")
 
     except Exception as e:
         logger.error(f"Training start failed: {e}")
@@ -229,6 +382,14 @@ def handle_stop_demo(data):
     if session_id:
         get_player().stop_demo(session_id)
         emit("demo_status", {"session_id": session_id, "status": "stopped"})
+
+@socketio.on("set_demo_speed")
+def handle_set_demo_speed(data):
+    speed = float(data.get("speed", 0.05))
+    # Update speed on all active demos for this client
+    p = get_player()
+    for sid in list(p.active_demos.keys()):
+        p.set_demo_speed(sid, speed)
 
 @socketio.on("start_evaluation")
 def handle_start_evaluation(data):

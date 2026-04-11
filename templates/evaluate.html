@@ -126,7 +126,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let evalBarChart = null;
     let evalLengthChart = null;
 
-    // Load models
+    // BUG-002 FIX: Load models using m.id as value
     fetch('/api/models')
         .then(r => r.json())
         .then(data => {
@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.models && data.models.length > 0) {
                 data.models.forEach(m => {
                     const opt = document.createElement('option');
-                    opt.value = m.name || m.path;
+                    opt.value = m.id;  // BUG-002 FIX: use id, not name
                     opt.textContent = m.name + (m.scenario ? ' (' + m.scenario + ')' : '');
                     opt.dataset.scenario = m.scenario || '';
                     modelSelect.appendChild(opt);
@@ -155,9 +155,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Run Evaluation
     btnRun.addEventListener('click', function() {
-        const model = modelSelect.value;
+        const modelId = modelSelect.value;
         const episodes = parseInt(document.getElementById('evalEpisodes').value) || 10;
-        if (!model) {
+        if (!modelId) {
             window.showToast('Please select a model first.', 'warning');
             return;
         }
@@ -171,9 +171,9 @@ document.addEventListener('DOMContentLoaded', function() {
         btnRun.disabled = true;
 
         socket.emit('start_evaluation', {
-            model: model,
+            model_id: modelId,  // BUG-002 FIX: send model_id
             scenario: scenarioSelect.value,
-            episodes: episodes
+            n_episodes: episodes
         });
     });
 
@@ -184,11 +184,18 @@ document.addEventListener('DOMContentLoaded', function() {
         progressText.textContent = data.current + '/' + data.total + ' episodes';
     });
 
-    // Evaluation complete
-    socket.on('evaluation_complete', function(data) {
+    // Evaluation result (handles both success and error)
+    socket.on('evaluation_result', function(data) {
         loadingEl.classList.add('hidden');
-        resultsEl.classList.remove('hidden');
         btnRun.disabled = false;
+
+        if (data.error) {
+            initialEl.classList.remove('hidden');
+            window.showToast('Evaluation error: ' + data.error, 'error');
+            return;
+        }
+
+        resultsEl.classList.remove('hidden');
 
         // Update stat cards
         document.getElementById('evalMeanReward').textContent = (data.mean_reward || 0).toFixed(2);
@@ -196,8 +203,8 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('evalMinReward').textContent = (data.min_reward || 0).toFixed(2);
         document.getElementById('evalMaxReward').textContent = (data.max_reward || 0).toFixed(2);
 
-        // Per-episode rewards bar chart
-        const rewards = data.episode_rewards || [];
+        // BUG-003 FIX: use rewards_list and episode_lengths (matching evaluator.py output)
+        const rewards = data.rewards_list || [];
         const lengths = data.episode_lengths || [];
         const labels = rewards.map((_, i) => 'Ep ' + (i + 1));
 
@@ -206,14 +213,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (evalLengthChart) evalLengthChart.destroy();
         evalLengthChart = createEvalBarChart('evalLengthChart', labels, lengths, 'Episode Length');
-    });
-
-    // Evaluation error
-    socket.on('evaluation_error', function(data) {
-        loadingEl.classList.add('hidden');
-        initialEl.classList.remove('hidden');
-        btnRun.disabled = false;
-        window.showToast('Evaluation error: ' + (data.message || 'Unknown error'), 'error');
     });
 });
 </script>

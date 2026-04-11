@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}DOOM RL{% endblock %} | DOOM RL Command Center</title>
+    <title>{% block title %}ARENA OF RL{% endblock %} | Arena of RL</title>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -29,7 +29,7 @@
         <!-- Sidebar Navigation -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-brand">
-                <h1><i class="fas fa-skull-crossbones"></i> DOOM RL</h1>
+                <h1><i class="fas fa-skull-crossbones"></i> ARENA</h1>
                 <div class="subtitle">Reinforcement Learning</div>
             </div>
 
@@ -51,6 +51,9 @@
                 </a>
             </nav>
 
+            <div class="sidebar-user" id="sidebarUserSection">
+                <i class="fas fa-user-astronaut"></i> <span id="sidebarUsername">--</span>
+            </div>
             <div class="sidebar-footer">
                 <span class="status-dot" id="connectionDot"></span>
                 <span id="connectionStatus">Connecting...</span>

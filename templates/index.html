@@ -5,9 +5,10 @@
 <div class="animate-slideIn">
 
     <!-- Hero Section -->
-    <div class="hero">
-        <h1><i class="fas fa-skull-crossbones"></i> DOOM RL COMMAND CENTER</h1>
-        <p>Train reinforcement learning agents to conquer DOOM. Configure scenarios, watch AI play, and evaluate model performance in real-time.</p>
+    <div class="hero arena-hero">
+        <div class="hero-glitch-text" data-text="ARENA OF RL">ARENA OF RL</div>
+        <p class="hero-subtitle">Train reinforcement learning agents to conquer DOOM. Configure scenarios, watch AI play, and evaluate model performance in real-time.</p>
+        <div class="hero-pulse"></div>
     </div>
 
     <!-- Quick Stats -->
@@ -15,22 +16,28 @@
         <div class="stat-card">
             <div class="stat-icon"><i class="fas fa-brain"></i></div>
             <div class="stat-label">Active Trainings</div>
-            <div class="stat-value primary" id="activeTrainings">0</div>
+            <div class="stat-value primary" id="activeTrainings">
+                <div class="spinner-inline"></div>
+            </div>
         </div>
         <div class="stat-card">
             <div class="stat-icon"><i class="fas fa-database"></i></div>
             <div class="stat-label">Saved Models</div>
-            <div class="stat-value" id="savedModels">0</div>
+            <div class="stat-value" id="savedModels">
+                <div class="spinner-inline"></div>
+            </div>
         </div>
         <div class="stat-card">
             <div class="stat-icon"><i class="fas fa-map"></i></div>
             <div class="stat-label">Available Scenarios</div>
-            <div class="stat-value success" id="availableScenarios">0</div>
+            <div class="stat-value success" id="availableScenarios">
+                <div class="spinner-inline"></div>
+            </div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon"><i class="fas fa-clock"></i></div>
-            <div class="stat-label">Total Training Time</div>
-            <div class="stat-value" id="totalTrainingTime">0h</div>
+            <div class="stat-icon"><i class="fas fa-trophy"></i></div>
+            <div class="stat-label">Best Reward</div>
+            <div class="stat-value" id="bestReward" style="color:var(--warning);">--</div>
         </div>
     </div>
 
@@ -40,7 +47,7 @@
             <h3><i class="fas fa-bolt text-primary"></i> Quick Actions</h3>
         </div>
         <div class="btn-group">
-            <a href="/train" class="btn btn-primary btn-lg">
+            <a href="/train" class="btn btn-primary btn-lg arena-btn-glow">
                 <i class="fas fa-play"></i> Start Training
             </a>
             <a href="/play" class="btn btn-secondary btn-lg">
@@ -60,18 +67,35 @@
         <!-- Recent Activity -->
         <div class="card">
             <div class="card-header">
-                <h3><i class="fas fa-clock text-secondary-c"></i> Recent Activity</h3>
+                <h3><i class="fas fa-clock text-secondary-c"></i> Recent Training Activity</h3>
+                <button class="btn btn-sm btn-outline" id="btnRefreshActivity"><i class="fas fa-sync-alt"></i></button>
             </div>
             <div id="recentActivity">
                 <div class="episode-list">
                     <div class="episode-item">
-                        <span class="ep-num"><i class="fas fa-info-circle text-secondary-c"></i></span>
-                        <span>No recent activity yet. Start a training session to see updates here.</span>
+                        <span class="ep-num"><div class="spinner-inline"></div></span>
+                        <span>Loading activity...</span>
                     </div>
                 </div>
             </div>
         </div>
 
+        <!-- Leaderboard -->
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-trophy text-primary"></i> Model Leaderboard</h3>
+            </div>
+            <div class="episode-list" id="leaderboardList">
+                <div class="episode-item">
+                    <span class="ep-num"><div class="spinner-inline"></div></span>
+                    <span>Loading leaderboard...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Info Row -->
+    <div class="grid-2 mb-4">
         <!-- System Info -->
         <div class="card">
             <div class="card-header">
@@ -96,6 +120,18 @@
                 </div>
             </div>
         </div>
+
+        <!-- Active Training Sessions -->
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-fire text-primary"></i> Active Sessions</h3>
+            </div>
+            <div class="episode-list" id="activeSessionsList">
+                <div class="episode-item">
+                    <span class="text-muted">No active training sessions</span>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Scenario Overview -->
@@ -104,36 +140,9 @@
             <h3><i class="fas fa-map text-primary"></i> Available Scenarios</h3>
         </div>
         <div class="scenario-grid" id="scenarioGrid">
-            <div class="scenario-card">
-                <div class="icon"><i class="fas fa-crosshairs"></i></div>
-                <h4>Basic</h4>
-                <p>Simple shoot-the-monster scenario. Learn to aim and fire at a single target.</p>
-            </div>
-            <div class="scenario-card">
-                <div class="icon"><i class="fas fa-running"></i></div>
-                <h4>Corridor</h4>
-                <p>Navigate a corridor while fighting enemies. Tests movement and combat.</p>
-            </div>
-            <div class="scenario-card">
-                <div class="icon"><i class="fas fa-shield-alt"></i></div>
-                <h4>Defend the Center</h4>
-                <p>Survive waves of enemies approaching from all sides. Defend your position.</p>
-            </div>
-            <div class="scenario-card">
-                <div class="icon"><i class="fas fa-heartbeat"></i></div>
-                <h4>Health Gathering</h4>
-                <p>Collect health packs on toxic floor. Learn resource management and navigation.</p>
-            </div>
-            <div class="scenario-card">
-                <div class="icon"><i class="fas fa-skull"></i></div>
-                <h4>Deathmatch</h4>
-                <p>Full deathmatch scenario with complex navigation and multiple enemies.</p>
-            </div>
-            <div class="scenario-card">
-                <div class="icon"><i class="fas fa-bomb"></i></div>
-                <h4>Deadly Corridor</h4>
-                <p>Reach the end of a corridor filled with dangerous enemies and traps.</p>
-            </div>
+            <div class="scenario-card loading-shimmer" style="min-height:160px;"></div>
+            <div class="scenario-card loading-shimmer" style="min-height:160px;"></div>
+            <div class="scenario-card loading-shimmer" style="min-height:160px;"></div>
         </div>
     </div>
 
@@ -143,31 +152,205 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Fetch dashboard stats
-    fetch('/api/models')
-        .then(r => r.json())
-        .then(data => {
-            document.getElementById('savedModels').textContent = data.models ? data.models.length : 0;
-        })
-        .catch(() => {});
+    var scenarioIcons = {
+        'basic': 'fa-crosshairs',
+        'deadly_corridor_s1': 'fa-running',
+        'deadly_corridor_s3': 'fa-running',
+        'deadly_corridor_s5': 'fa-fire',
+        'defend_the_center': 'fa-shield-alt',
+        'defend_the_line': 'fa-shield-alt',
+        'health_gathering': 'fa-heartbeat',
+        'my_way_home': 'fa-compass',
+        'take_cover': 'fa-bomb',
+        'deathmatch': 'fa-skull'
+    };
 
-    fetch('/api/scenarios')
-        .then(r => r.json())
-        .then(data => {
-            document.getElementById('availableScenarios').textContent = data.scenarios ? data.scenarios.length : 0;
+    var scenarioColors = {
+        'basic': 'var(--secondary)',
+        'deadly_corridor_s1': 'var(--warning)',
+        'deadly_corridor_s3': 'var(--primary)',
+        'deadly_corridor_s5': 'var(--danger)',
+        'defend_the_center': 'var(--success)',
+        'defend_the_line': 'var(--success)',
+        'health_gathering': '#ff69b4',
+        'my_way_home': 'var(--secondary)',
+        'take_cover': 'var(--warning)'
+    };
+
+    // Fetch models
+    fetch('/api/models')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var models = data.models || [];
+            document.getElementById('savedModels').textContent = models.length;
+
+            // Leaderboard: sort by mean_reward descending
+            var sorted = models.slice().sort(function(a, b) {
+                return (b.mean_reward || -Infinity) - (a.mean_reward || -Infinity);
+            });
+            var leaderboard = document.getElementById('leaderboardList');
+            if (sorted.length === 0) {
+                leaderboard.innerHTML = '<div class="empty-state" style="padding:24px;"><i class="fas fa-trophy"></i><p>No models yet. Train one to see it here.</p></div>';
+            } else {
+                leaderboard.innerHTML = '';
+                var top = sorted.slice(0, 8);
+                top.forEach(function(m, i) {
+                    var medal = i === 0 ? '<i class="fas fa-crown" style="color:gold;"></i> ' :
+                                i === 1 ? '<i class="fas fa-medal" style="color:silver;"></i> ' :
+                                i === 2 ? '<i class="fas fa-medal" style="color:#cd7f32;"></i> ' : '';
+                    var item = document.createElement('div');
+                    item.className = 'episode-item';
+                    item.innerHTML =
+                        '<span class="ep-num">' + medal + '#' + (i + 1) + ' ' + (m.name || 'Unnamed') + '</span>' +
+                        '<span class="ep-reward">' + window.formatNumber(m.mean_reward, 2) + '</span>';
+                    leaderboard.appendChild(item);
+                });
+            }
+
+            // Best reward
+            if (sorted.length > 0 && sorted[0].mean_reward != null) {
+                document.getElementById('bestReward').textContent = window.formatNumber(sorted[0].mean_reward, 2);
+            }
         })
-        .catch(() => {});
+        .catch(function() {
+            document.getElementById('savedModels').textContent = '0';
+        });
+
+    // Fetch scenarios dynamically
+    fetch('/api/scenarios')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var scenarios = data.scenarios || [];
+            document.getElementById('availableScenarios').textContent = scenarios.length;
+
+            var grid = document.getElementById('scenarioGrid');
+            grid.innerHTML = '';
+            scenarios.forEach(function(s) {
+                var icon = scenarioIcons[s.id] || 'fa-gamepad';
+                var color = scenarioColors[s.id] || 'var(--primary)';
+                var card = document.createElement('div');
+                card.className = 'scenario-card';
+                card.innerHTML =
+                    '<div class="icon" style="color:' + color + ';"><i class="fas ' + icon + '"></i></div>' +
+                    '<h4>' + s.name + '</h4>' +
+                    '<p>' + (s.description || '') + '</p>' +
+                    '<div class="scenario-meta">' +
+                        '<span class="cfg-tag">' + s.num_actions + ' actions</span>' +
+                    '</div>';
+                card.addEventListener('click', function() {
+                    window.location.href = '/train?scenario=' + s.id;
+                });
+                grid.appendChild(card);
+            });
+        })
+        .catch(function() {
+            document.getElementById('availableScenarios').textContent = '0';
+        });
+
+    // Fetch active trainings
+    fetch('/api/training/status')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var count = Object.keys(data).length;
+            document.getElementById('activeTrainings').textContent = count;
+
+            var list = document.getElementById('activeSessionsList');
+            if (count === 0) {
+                list.innerHTML = '<div class="episode-item"><span class="text-muted">No active training sessions</span></div>';
+            } else {
+                list.innerHTML = '';
+                Object.keys(data).forEach(function(sid) {
+                    var item = document.createElement('div');
+                    item.className = 'episode-item';
+                    item.innerHTML =
+                        '<span class="ep-num"><span class="status-dot" style="background:var(--success);"></span> ' + sid + '</span>' +
+                        '<span class="ep-reward">' + data[sid] + '</span>';
+                    list.appendChild(item);
+                });
+            }
+        })
+        .catch(function() {
+            document.getElementById('activeTrainings').textContent = '0';
+        });
+
+    // Fetch recent training history
+    function loadActivity() {
+        fetch('/api/training/history')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var sessions = (data.sessions || []).slice(0, 10);
+                var container = document.getElementById('recentActivity');
+                if (sessions.length === 0) {
+                    container.innerHTML =
+                        '<div class="episode-list">' +
+                            '<div class="episode-item">' +
+                                '<span class="ep-num"><i class="fas fa-info-circle text-secondary-c"></i></span>' +
+                                '<span>No recent activity yet. Start a training session to see updates here.</span>' +
+                            '</div>' +
+                        '</div>';
+                    return;
+                }
+
+                var html = '<div class="episode-list">';
+                sessions.forEach(function(s) {
+                    var statusColor = s.status === 'completed' ? 'var(--success)' :
+                                      s.status === 'running' ? 'var(--secondary)' :
+                                      s.status === 'error' ? 'var(--danger)' : 'var(--text-muted)';
+                    var reward = s.mean_reward != null ? window.formatNumber(s.mean_reward, 2) : '--';
+                    var timeAgo = s.started_at ? formatTimeAgo(s.started_at) : '';
+                    html +=
+                        '<div class="episode-item">' +
+                            '<span class="ep-num">' +
+                                '<span class="status-dot" style="background:' + statusColor + ';"></span> ' +
+                                (s.scenario || 'unknown') + ' <span class="text-muted">(' + s.session_id + ')</span>' +
+                            '</span>' +
+                            '<span>' +
+                                '<span class="ep-reward">' + reward + '</span>' +
+                                '<span class="text-muted" style="margin-left:8px;font-size:0.75rem;">' + timeAgo + '</span>' +
+                            '</span>' +
+                        '</div>';
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            })
+            .catch(function() {});
+    }
+    loadActivity();
+
+    var btnRefreshActivity = document.getElementById('btnRefreshActivity');
+    if (btnRefreshActivity) {
+        btnRefreshActivity.addEventListener('click', loadActivity);
+    }
 
     // Update socket status on dashboard
     if (window.socket) {
-        window.socket.on('connect', () => {
+        window.socket.on('connect', function() {
             document.getElementById('dashSocketStatus').textContent = 'Connected';
             document.getElementById('dashSocketStatus').style.color = 'var(--success)';
         });
-        window.socket.on('disconnect', () => {
+        window.socket.on('disconnect', function() {
             document.getElementById('dashSocketStatus').textContent = 'Disconnected';
             document.getElementById('dashSocketStatus').style.color = 'var(--danger)';
         });
+        // If already connected
+        if (window.socket.connected) {
+            document.getElementById('dashSocketStatus').textContent = 'Connected';
+            document.getElementById('dashSocketStatus').style.color = 'var(--success)';
+        }
+    }
+
+    function formatTimeAgo(dateStr) {
+        try {
+            var d = new Date(dateStr);
+            var now = new Date();
+            var diff = Math.floor((now - d) / 1000);
+            if (diff < 60) return diff + 's ago';
+            if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+            if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+            return Math.floor(diff / 86400) + 'd ago';
+        } catch(e) {
+            return '';
+        }
     }
 });
 </script>

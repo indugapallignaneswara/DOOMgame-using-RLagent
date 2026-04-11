@@ -1,1 +1,148 @@
-{"models": []}
+{
+  "models": [
+    {
+      "id": "a8023d91",
+      "name": "basic_94726a71",
+      "scenario": "basic",
+      "path": "D:\\DOOMgame-using-RLagent\\train\\session_94726a71\\final_model.zip",
+      "hyperparams": {
+        "learning_rate": 0.0001,
+        "n_steps": 2048,
+        "clip_range": 0.2,
+        "gamma": 0.99,
+        "gae_lambda": 0.95
+      },
+      "reward_config": {
+        "kill_reward": 1.0,
+        "miss_penalty": -0.1,
+        "step_penalty": -0.01,
+        "damage_penalty": -0.1,
+        "ammo_penalty": -0.1
+      },
+      "total_timesteps": 100000,
+      "created_at": "2026-04-11T13:47:33.348843",
+      "mean_reward": 89.26,
+      "total_episodes": 18068
+    },
+    {
+      "id": "4359e455",
+      "name": "test_basic",
+      "scenario": "basic",
+      "path": "D:\\DOOMgame-using-RLagent\\models\\test_basic.zip",
+      "description": "Pre-trained agent for Basic scenario. Shoots the monster.",
+      "pretrained": true,
+      "total_timesteps": 100000,
+      "created_at": "2026-04-01T00:00:00",
+      "mean_reward": 0,
+      "total_episodes": 0
+    },
+    {
+      "id": "fc5942d1",
+      "name": "test_deadly_corridor_s1",
+      "scenario": "deadly_corridor_s1",
+      "path": "D:\\DOOMgame-using-RLagent\\models\\test_deadly_corridor_s1.zip",
+      "description": "Pre-trained Deadly Corridor Skill 1 agent.",
+      "pretrained": true,
+      "total_timesteps": 100000,
+      "created_at": "2026-04-01T00:00:00",
+      "mean_reward": 0,
+      "total_episodes": 0
+    },
+    {
+      "id": "d387b324",
+      "name": "test_deadly_corridor_s5",
+      "scenario": "deadly_corridor_s5",
+      "path": "D:\\DOOMgame-using-RLagent\\models\\test_deadly_corridor_s5.zip",
+      "description": "Pre-trained Deadly Corridor Skill 5 agent.",
+      "pretrained": true,
+      "total_timesteps": 100000,
+      "created_at": "2026-04-01T00:00:00",
+      "mean_reward": 0,
+      "total_episodes": 0
+    },
+    {
+      "id": "587d726d",
+      "name": "test_defend_the_center",
+      "scenario": "defend_the_center",
+      "path": "D:\\DOOMgame-using-RLagent\\models\\test_defend_the_center.zip",
+      "description": "Pre-trained Defend the Center agent.",
+      "pretrained": true,
+      "total_timesteps": 100000,
+      "created_at": "2026-04-01T00:00:00",
+      "mean_reward": 0,
+      "total_episodes": 0
+    },
+    {
+      "id": "e01da7d2",
+      "name": "test_defend_the_line",
+      "scenario": "defend_the_line",
+      "path": "D:\\DOOMgame-using-RLagent\\models\\test_defend_the_line.zip",
+      "description": "Pre-trained Defend the Line agent.",
+      "pretrained": true,
+      "total_timesteps": 100000,
+      "created_at": "2026-04-01T00:00:00",
+      "mean_reward": 0,
+      "total_episodes": 0
+    },
+    {
+      "id": "e67ddca2",
+      "name": "test_health_gathering",
+      "scenario": "health_gathering",
+      "path": "D:\\DOOMgame-using-RLagent\\models\\test_health_gathering.zip",
+      "description": "Pre-trained Health Gathering agent.",
+      "pretrained": true,
+      "total_timesteps": 100000,
+      "created_at": "2026-04-01T00:00:00",
+      "mean_reward": 0,
+      "total_episodes": 0
+    },
+    {
+      "id": "6afdfe9f",
+      "name": "test_my_way_home",
+      "scenario": "my_way_home",
+      "path": "D:\\DOOMgame-using-RLagent\\models\\test_my_way_home.zip",
+      "description": "Pre-trained My Way Home navigation agent.",
+      "pretrained": true,
+      "total_timesteps": 100000,
+      "created_at": "2026-04-01T00:00:00",
+      "mean_reward": 0,
+      "total_episodes": 0
+    },
+    {
+      "id": "a988c1d7",
+      "name": "test_take_cover",
+      "scenario": "take_cover",
+      "path": "D:\\DOOMgame-using-RLagent\\models\\test_take_cover.zip",
+      "description": "Pre-trained Take Cover dodging agent.",
+      "pretrained": true,
+      "total_timesteps": 100000,
+      "created_at": "2026-04-01T00:00:00",
+      "mean_reward": 0,
+      "total_episodes": 0
+    },
+    {
+      "id": "d6cf515e",
+      "name": "basic_0d52c3a4",
+      "scenario": "basic",
+      "path": "D:\\DOOMgame-using-RLagent\\train\\session_0d52c3a4\\final_model.zip",
+      "hyperparams": {
+        "learning_rate": 0.0001,
+        "n_steps": 2048,
+        "clip_range": 0.2,
+        "gamma": 0.99,
+        "gae_lambda": 0.95
+      },
+      "reward_config": {
+        "kill_reward": 1.0,
+        "miss_penalty": -0.1,
+        "step_penalty": -0.01,
+        "damage_penalty": -0.1,
+        "ammo_penalty": -0.1
+      },
+      "total_timesteps": 100000,
+      "created_at": "2026-04-11T22:23:28.972549",
+      "mean_reward": 88.48,
+      "total_episodes": 19050
+    }
+  ]
+}

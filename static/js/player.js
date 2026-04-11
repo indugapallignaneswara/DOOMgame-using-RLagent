@@ -1,5 +1,5 @@
 /* ============================================================
-   DOOM RL – Play / Demo Page JS
+   ARENA OF RL - Play / Demo Page JS
    ============================================================ */
 
 (function () {
@@ -14,10 +14,15 @@
     var speedVal        = document.getElementById('speedVal');
     var btnStart        = document.getElementById('btnStartDemo');
     var btnStop         = document.getElementById('btnStopDemo');
+    var btnFullscreen   = document.getElementById('btnFullscreen');
     var statusBadge     = document.getElementById('demoStatusBadge');
     var gameOverlay     = document.getElementById('gameOverlay');
+    var gameContainer   = document.getElementById('gameContainer');
     var canvas          = document.getElementById('gameCanvas');
     var ctx             = canvas ? canvas.getContext('2d') : null;
+    var actionOverlay   = document.getElementById('actionOverlay');
+    var hudOverlay      = document.getElementById('hudOverlay');
+    var scanlineToggle  = document.getElementById('scanlineToggle');
 
     // Stats
     var currentRewardEl = document.getElementById('currentReward');
@@ -26,10 +31,18 @@
     var episodeCountEl  = document.getElementById('episodeCount');
     var episodeHistory  = document.getElementById('episodeHistory');
 
+    // HUD elements
+    var hudHealth       = document.getElementById('hudHealthFill');
+    var hudHealthText   = document.getElementById('hudHealthText');
+    var hudAmmo         = document.getElementById('hudAmmoText');
+    var hudKills        = document.getElementById('hudKillsText');
+
     var isPlaying   = false;
     var totalReward = 0;
     var episodeNum  = 0;
     var stepNum     = 0;
+    var currentDemoSessionId = null;
+    var currentButtons = [];
 
     // Preloaded image for frame rendering
     var frameImage = new Image();
@@ -44,7 +57,48 @@
         });
     }
 
-    // ---- Fetch Models ----
+    // ---- Scanline Toggle ----
+    if (scanlineToggle) {
+        scanlineToggle.addEventListener('change', function () {
+            var scanlines = document.getElementById('scanlineOverlay');
+            if (scanlines) {
+                scanlines.style.display = this.checked ? 'block' : 'none';
+            }
+        });
+    }
+
+    // ---- Fullscreen ----
+    if (btnFullscreen) {
+        btnFullscreen.addEventListener('click', function () {
+            var wrapper = document.getElementById('fullscreenWrapper');
+            if (wrapper) {
+                wrapper.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+        });
+    }
+
+    // Exit fullscreen
+    document.addEventListener('click', function (e) {
+        if (e.target.id === 'fullscreenWrapper' || e.target.id === 'btnExitFullscreen') {
+            var wrapper = document.getElementById('fullscreenWrapper');
+            if (wrapper) {
+                wrapper.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        }
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            var wrapper = document.getElementById('fullscreenWrapper');
+            if (wrapper && wrapper.classList.contains('active')) {
+                wrapper.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        }
+    });
+
+    // ---- Fetch Models (BUG-001 FIX: use m.id as value) ----
     fetch('/api/models')
         .then(function (r) { return r.json(); })
         .then(function (data) {
@@ -52,7 +106,7 @@
             if (data.models && data.models.length > 0) {
                 data.models.forEach(function (m) {
                     var opt = document.createElement('option');
-                    opt.value = m.name || m.path;
+                    opt.value = m.id;  // BUG-001 FIX: use id, not name
                     opt.textContent = m.name + (m.scenario ? ' (' + m.scenario + ')' : '');
                     opt.dataset.scenario = m.scenario || '';
                     modelSelect.appendChild(opt);
@@ -75,10 +129,10 @@
         }
     });
 
-    // ---- Start Demo ----
+    // ---- Start Demo (BUG-001 FIX: send model_id) ----
     btnStart.addEventListener('click', function () {
-        var model = modelSelect.value;
-        if (!model) {
+        var modelId = modelSelect.value;
+        if (!modelId) {
             window.showToast('Please select a model first.', 'warning');
             return;
         }
@@ -89,9 +143,11 @@
         stepNum     = 0;
         updateStats(0, 0, 0, 0);
         clearEpisodeHistory();
+        clearActionOverlay();
+        updateHUD(100, 0, 0);
 
         socket.emit('start_demo', {
-            model:    model,
+            model_id: modelId,  // BUG-001 FIX: send as model_id
             scenario: scenarioSelect.value || '',
             speed:    parseFloat(speedSlider.value)
         });
@@ -102,7 +158,7 @@
 
     // ---- Stop Demo ----
     btnStop.addEventListener('click', function () {
-        socket.emit('stop_demo');
+        socket.emit('stop_demo', { session_id: currentDemoSessionId });
         setPlayingState(false);
     });
 
@@ -125,6 +181,23 @@
 
         updateStats(reward, totalReward, stepNum, episodeNum);
 
+        // Update action overlay
+        if (data.buttons && data.buttons.length > 0) {
+            currentButtons = data.buttons;
+        }
+        if (currentButtons.length > 0 && data.action !== undefined) {
+            renderActionOverlay(currentButtons, data.action, data.action_name);
+        }
+
+        // Update HUD overlay with game variables
+        if (data.info) {
+            var health = data.info.health !== undefined ? data.info.health : 100;
+            var ammo = data.info.ammo2 !== undefined ? data.info.ammo2 :
+                       (data.info.selected_weapon_ammo !== undefined ? data.info.selected_weapon_ammo : 0);
+            var kills = data.info.hitcount !== undefined ? data.info.hitcount : 0;
+            updateHUD(health, ammo, kills);
+        }
+
         // Check if episode ended
         if (data.done || data.episode_done) {
             episodeNum++;
@@ -137,19 +210,24 @@
     // ---- Demo Status Event ----
     socket.on('demo_status', function (data) {
         var status = data.status;
-        if (status === 'running' || status === 'playing') {
+        if (data.session_id) currentDemoSessionId = data.session_id;
+
+        // BUG-011 FIX: handle "started" status
+        if (status === 'started' || status === 'running' || status === 'playing') {
             setPlayingState(true);
             if (gameOverlay) gameOverlay.style.display = 'none';
-        } else if (status === 'stopped' || status === 'error') {
+        } else if (status === 'stopped' || status === 'error' || status === 'failed') {
             setPlayingState(false);
             if (gameOverlay) {
                 gameOverlay.style.display = '';
-                gameOverlay.textContent = status === 'error'
-                    ? 'Error: ' + (data.message || 'Unknown')
+                // BUG-007 FIX: read data.error, not data.message
+                gameOverlay.textContent = (status === 'error' || status === 'failed')
+                    ? 'Error: ' + (data.error || 'Unknown')
                     : 'Demo Stopped';
             }
-            if (status === 'error') {
-                window.showToast('Demo error: ' + (data.message || ''), 'error');
+            if (status === 'error' || status === 'failed') {
+                // BUG-007 FIX: read data.error
+                window.showToast('Demo error: ' + (data.error || ''), 'error');
             }
         }
     });
@@ -159,8 +237,10 @@
         isPlaying = playing;
         btnStart.disabled = playing;
         btnStop.disabled  = !playing;
-        statusBadge.textContent = playing ? 'Playing' : 'Idle';
-        statusBadge.className = playing ? 'mono text-success training-active' : 'mono text-muted';
+        statusBadge.textContent = playing ? 'LIVE' : 'Idle';
+        statusBadge.className = playing
+            ? 'status-badge-live'
+            : 'mono text-muted';
     }
 
     function updateStats(current, total, step, episode) {
@@ -171,18 +251,17 @@
     }
 
     function addEpisodeToHistory(epNum, reward) {
-        // Remove empty state on first episode
         if (epNum === 1) {
             episodeHistory.innerHTML = '';
         }
 
         var item = document.createElement('div');
-        item.className = 'episode-item';
+        item.className = 'episode-item animate-slideIn';
+        var rewardClass = reward >= 0 ? 'text-success' : 'text-danger';
         item.innerHTML =
-            '<span class="ep-num">Episode ' + epNum + '</span>' +
-            '<span class="ep-reward">' + window.formatNumber(reward) + '</span>';
+            '<span class="ep-num">EP ' + epNum + '</span>' +
+            '<span class="ep-reward ' + rewardClass + '">' + window.formatNumber(reward) + '</span>';
 
-        // Prepend so newest is on top
         episodeHistory.insertBefore(item, episodeHistory.firstChild);
     }
 
@@ -192,6 +271,49 @@
             '<i class="fas fa-inbox"></i>' +
             '<p>Episode rewards will appear here as the agent completes episodes.</p>' +
             '</div>';
+    }
+
+    // ---- Action Overlay ----
+    function renderActionOverlay(buttons, activeIdx, actionName) {
+        if (!actionOverlay) return;
+        var html = '';
+        for (var i = 0; i < buttons.length; i++) {
+            var isActive = (i === activeIdx);
+            var cls = 'action-key' + (isActive ? ' active' : '');
+            html += '<div class="' + cls + '">' +
+                '<span class="action-key-label">' + formatButtonName(buttons[i]) + '</span>' +
+                '</div>';
+        }
+        actionOverlay.innerHTML = html;
+    }
+
+    function clearActionOverlay() {
+        if (actionOverlay) actionOverlay.innerHTML = '';
+    }
+
+    function formatButtonName(name) {
+        return name.replace('MOVE_', '').replace('TURN_', 'T-');
+    }
+
+    // ---- HUD Overlay ----
+    function updateHUD(health, ammo, kills) {
+        if (!hudOverlay) return;
+        health = Math.max(0, Math.min(100, health));
+
+        if (hudHealth) {
+            hudHealth.style.width = health + '%';
+            // Color transition: green -> yellow -> red
+            if (health > 60) {
+                hudHealth.style.background = 'linear-gradient(90deg, #00ff9d, #00cc7d)';
+            } else if (health > 30) {
+                hudHealth.style.background = 'linear-gradient(90deg, #ffaa00, #ff8800)';
+            } else {
+                hudHealth.style.background = 'linear-gradient(90deg, #ff2244, #cc1133)';
+            }
+        }
+        if (hudHealthText) hudHealthText.textContent = Math.round(health);
+        if (hudAmmo) hudAmmo.textContent = Math.round(ammo);
+        if (hudKills) hudKills.textContent = Math.round(kills);
     }
 
 })();
