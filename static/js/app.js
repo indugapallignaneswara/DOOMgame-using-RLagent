@@ -15,19 +15,19 @@
     socket.on('connect', function () {
         if (connectionDot) connectionDot.style.background = 'var(--success)';
         if (connectionStatus) connectionStatus.textContent = 'Connected';
-        console.log('[DOOM RL] Socket connected:', socket.id);
+        console.log('[ARENA OF RL] Socket connected:', socket.id);
     });
 
     socket.on('disconnect', function () {
         if (connectionDot) connectionDot.style.background = 'var(--danger)';
         if (connectionStatus) connectionStatus.textContent = 'Disconnected';
-        console.warn('[DOOM RL] Socket disconnected');
+        console.warn('[ARENA OF RL] Socket disconnected');
     });
 
     socket.on('connect_error', function (err) {
         if (connectionDot) connectionDot.style.background = 'var(--warning)';
         if (connectionStatus) connectionStatus.textContent = 'Connection Error';
-        console.error('[DOOM RL] Connection error:', err.message);
+        console.error('[ARENA OF RL] Connection error:', err.message);
     });
 
     socket.on('error', function (data) {
@@ -139,5 +139,85 @@
             }, 300);
         }, 5000);
     });
+
+    // ---- User Profile System ----
+    window.doomUser = (function () {
+        var user = null;
+        try { user = JSON.parse(localStorage.getItem('doom_user')); } catch (e) {}
+
+        function showProfilePrompt() {
+            var overlay = document.createElement('div');
+            overlay.className = 'user-profile-overlay';
+            overlay.innerHTML =
+                '<div class="user-profile-modal">' +
+                    '<div class="user-profile-icon"><i class="fas fa-skull-crossbones"></i></div>' +
+                    '<h2>Welcome, Marine</h2>' +
+                    '<p>Enter your callsign to begin training AI agents.</p>' +
+                    '<input type="text" id="usernameInput" class="form-control" placeholder="Your callsign..." maxlength="30" autofocus>' +
+                    '<button class="btn btn-primary" id="btnSetUsername" style="width:100%;margin-top:16px;">' +
+                        '<i class="fas fa-play"></i> Enter the Arena' +
+                    '</button>' +
+                '</div>';
+            document.body.appendChild(overlay);
+
+            var input = document.getElementById('usernameInput');
+            var btn = document.getElementById('btnSetUsername');
+
+            function submit() {
+                var name = input.value.trim();
+                if (name.length < 2) { input.style.borderColor = 'var(--danger)'; return; }
+                // Register on server
+                fetch('/api/users/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: name })
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.error && data.error.indexOf('already taken') > -1) {
+                        // Login instead
+                        return fetch('/api/users/login', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ username: name })
+                        }).then(function (r2) { return r2.json(); });
+                    }
+                    return data;
+                })
+                .then(function (data) {
+                    if (data.error) { input.style.borderColor = 'var(--danger)'; return; }
+                    user = data;
+                    localStorage.setItem('doom_user', JSON.stringify(user));
+                    overlay.remove();
+                    updateSidebarUser();
+                    window.showToast('Welcome, ' + user.username + '!', 'success');
+                })
+                .catch(function () {
+                    // Offline fallback: store locally
+                    user = { username: name, id: 'local_' + Date.now() };
+                    localStorage.setItem('doom_user', JSON.stringify(user));
+                    overlay.remove();
+                    updateSidebarUser();
+                });
+            }
+
+            btn.addEventListener('click', submit);
+            input.addEventListener('keydown', function (e) { if (e.key === 'Enter') submit(); });
+        }
+
+        function updateSidebarUser() {
+            var el = document.getElementById('sidebarUsername');
+            if (el && user) el.textContent = user.username;
+        }
+
+        // Check on load
+        if (!user) {
+            showProfilePrompt();
+        } else {
+            updateSidebarUser();
+        }
+
+        return { getUser: function () { return user; }, getUsername: function () { return user ? user.username : 'anonymous'; } };
+    })();
 
 })();

@@ -69,6 +69,10 @@ class TrainingManager:
         env = None
         try:
             logger.info(f"[{session_id}] Creating environment: {scenario_key}")
+            self.socketio.emit("training_status", {
+                "session_id": session_id, "status": "initializing",
+                "message": "Creating ViZDoom environment..."
+            })
             env = VizDoomGym(scenario_key, render=False)
 
             # Apply reward shaping if configured
@@ -77,6 +81,11 @@ class TrainingManager:
                 env = RewardShapingWrapper(env, **reward_config)
 
             env = Monitor(env)
+
+            self.socketio.emit("training_status", {
+                "session_id": session_id, "status": "initializing",
+                "message": "Building PPO model..."
+            })
 
             # Create PPO model
             model = PPO(
@@ -94,6 +103,7 @@ class TrainingManager:
             callback = WebTrainingCallback(
                 socketio=self.socketio,
                 session_id=session_id,
+                total_timesteps=total_timesteps,
                 emit_freq=50,
                 check_freq=10000,
                 save_path=save_path,
@@ -121,6 +131,9 @@ class TrainingManager:
             with self._lock:
                 self.active_sessions[session_id]["status"] = "completed"
 
+            # Update training history
+            self._update_history(session_id, "completed", callback)
+
             self.socketio.emit("training_status", {
                 "session_id": session_id,
                 "status": "completed",
@@ -132,6 +145,7 @@ class TrainingManager:
             with self._lock:
                 if session_id in self.active_sessions:
                     self.active_sessions[session_id]["status"] = "failed"
+            self._update_history(session_id, "failed", error=str(e))
             self.socketio.emit("training_status", {
                 "session_id": session_id,
                 "status": "failed",
@@ -180,6 +194,30 @@ class TrainingManager:
             logger.info(f"Model registered: {model_entry['id']}")
         except Exception as e:
             logger.error(f"Failed to register model: {e}")
+
+    def _update_history(self, session_id, status, callback=None, error=None):
+        """Update training history with final results."""
+        try:
+            import sys, os
+            sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+            from app import save_training_session, load_history
+            from datetime import datetime
+
+            history = load_history()
+            for s in history["sessions"]:
+                if s["session_id"] == session_id:
+                    s["status"] = status
+                    s["finished_at"] = datetime.now().isoformat()
+                    if callback and callback._episode_rewards:
+                        last50 = callback._episode_rewards[-50:]
+                        s["mean_reward"] = round(sum(last50) / len(last50), 2)
+                        s["total_episodes"] = len(callback._episode_rewards)
+                    if error:
+                        s["error"] = error
+                    save_training_session(s)
+                    break
+        except Exception as e:
+            logger.error(f"Failed to update history: {e}")
 
     def pause_training(self, session_id):
         with self._lock:

@@ -33,6 +33,11 @@ class VizDoomGym(gym.Env):
         self.game.set_screen_format(ScreenFormat.RGB24)
         self.game.set_screen_resolution(ScreenResolution.RES_640X480)
         self.game.set_mode(Mode.PLAYER)
+
+        # Set skill level if specified (for corridor variants)
+        if "skill_level" in self.scenario:
+            self.game.set_doom_skill(self.scenario["skill_level"])
+
         self.game.init()
 
         # Spaces

@@ -8,16 +8,22 @@ class RewardShapingWrapper(gym.Wrapper):
 
     Tracks game variable deltas (health, ammo, damage, hitcount)
     and applies bonus/penalty based on configuration.
+
+    BUG-012 FIX: Penalty values can be provided as negative numbers
+    (e.g., -0.1) from the UI defaults. We take the absolute value so
+    the subtraction logic works correctly regardless of sign.
     """
 
     def __init__(self, env, kill_reward=0, miss_penalty=0, step_penalty=0,
                  damage_penalty=0, ammo_penalty=0):
         super().__init__(env)
-        self.kill_reward = kill_reward
-        self.miss_penalty = miss_penalty
-        self.step_penalty = step_penalty
-        self.damage_penalty = damage_penalty
-        self.ammo_penalty = ammo_penalty
+        # kill_reward is additive, so keep its sign as-is
+        self.kill_reward = abs(kill_reward) if kill_reward else 0
+        # Penalties: normalize to positive so we can subtract them
+        self.miss_penalty = abs(miss_penalty) if miss_penalty else 0
+        self.step_penalty = abs(step_penalty) if step_penalty else 0
+        self.damage_penalty = abs(damage_penalty) if damage_penalty else 0
+        self.ammo_penalty = abs(ammo_penalty) if ammo_penalty else 0
 
         # Previous game variable values
         self._prev_health = 0

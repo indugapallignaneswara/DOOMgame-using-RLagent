@@ -5,8 +5,8 @@
 <div class="animate-slideIn">
 
     <div class="page-header">
-        <h2><i class="fas fa-gamepad text-primary"></i> AI Demo</h2>
-        <p>Watch your trained agent play DOOM in real-time</p>
+        <h2><i class="fas fa-gamepad text-primary"></i> AI COMBAT ARENA</h2>
+        <p>Watch your trained agent dominate DOOM in real-time</p>
     </div>
 
     <div class="grid-2 mb-4">
@@ -15,7 +15,13 @@
             <!-- Controls -->
             <div class="card mb-3">
                 <div class="card-header">
-                    <h3><i class="fas fa-cog text-secondary-c"></i> Demo Controls</h3>
+                    <h3><i class="fas fa-sliders-h text-secondary-c"></i> Demo Controls</h3>
+                    <div class="flex gap-1">
+                        <label class="scanline-toggle-label">
+                            <input type="checkbox" id="scanlineToggle" checked>
+                            <span class="scanline-toggle-text">CRT</span>
+                        </label>
+                    </div>
                 </div>
 
                 <div class="grid-2 mb-2">
@@ -40,19 +46,49 @@
 
                 <div class="btn-group">
                     <button class="btn btn-primary" id="btnStartDemo"><i class="fas fa-play"></i> Start Demo</button>
-                    <button class="btn btn-danger" id="btnStopDemo" disabled><i class="fas fa-stop"></i> Stop Demo</button>
+                    <button class="btn btn-danger" id="btnStopDemo" disabled><i class="fas fa-stop"></i> Stop</button>
+                    <button class="btn btn-outline" id="btnFullscreen"><i class="fas fa-expand"></i> Fullscreen</button>
                 </div>
             </div>
 
             <!-- Game Canvas -->
-            <div class="card">
+            <div class="card game-card">
                 <div class="card-header">
                     <h3><i class="fas fa-tv text-primary"></i> Game View</h3>
                     <span class="mono text-muted" id="demoStatusBadge">Idle</span>
                 </div>
                 <div class="game-container" id="gameContainer">
                     <canvas id="gameCanvas" width="640" height="480"></canvas>
-                    <div class="overlay-text" id="gameOverlay">Select a model and press Start</div>
+                    <div class="scanline-overlay" id="scanlineOverlay"></div>
+                    <div class="overlay-text" id="gameOverlay">SELECT A MODEL AND PRESS START</div>
+                    <!-- HUD Overlay -->
+                    <div class="hud-overlay" id="hudOverlay">
+                        <div class="hud-item hud-health">
+                            <i class="fas fa-heart"></i>
+                            <div class="hud-bar">
+                                <div class="hud-bar-fill" id="hudHealthFill" style="width:100%"></div>
+                            </div>
+                            <span class="hud-value" id="hudHealthText">100</span>
+                        </div>
+                        <div class="hud-item hud-ammo">
+                            <i class="fas fa-crosshairs"></i>
+                            <span class="hud-value" id="hudAmmoText">0</span>
+                        </div>
+                        <div class="hud-item hud-kills">
+                            <i class="fas fa-skull"></i>
+                            <span class="hud-value" id="hudKillsText">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Overlay -->
+            <div class="card mt-2 action-overlay-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-keyboard text-secondary-c"></i> AI Actions</h3>
+                </div>
+                <div class="action-overlay" id="actionOverlay">
+                    <div class="action-key-placeholder">Start demo to see AI actions</div>
                 </div>
             </div>
         </div>
@@ -99,6 +135,14 @@
         </div>
     </div>
 
+</div>
+
+<!-- Fullscreen Wrapper -->
+<div class="fullscreen-wrapper" id="fullscreenWrapper">
+    <button class="btn btn-outline fullscreen-exit-btn" id="btnExitFullscreen">
+        <i class="fas fa-compress"></i> Exit Fullscreen (ESC)
+    </button>
+    <canvas id="fullscreenCanvas" width="1280" height="960"></canvas>
 </div>
 {% endblock %}
 
