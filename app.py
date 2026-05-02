@@ -353,6 +353,9 @@ def handle_start_demo(data):
         model_path = data.get("model_path", "")
         scenario_key = data.get("scenario", "basic")
         speed = float(data.get("speed", 0.05))
+        saliency_mode = data.get("saliency_mode", "off")
+        if saliency_mode not in ("off", "policy", "value"):
+            saliency_mode = "off"
 
         # Look up model path from registry if model_id given
         model_id = data.get("model_id")
@@ -369,12 +372,24 @@ def handle_start_demo(data):
             return
 
         p = get_player()
-        p.start_demo(session_id, model_path, scenario_key, speed)
+        p.start_demo(session_id, model_path, scenario_key, speed,
+                     saliency_mode=saliency_mode)
         emit("demo_status", {"session_id": session_id, "status": "started"})
 
     except Exception as e:
         logger.error(f"Demo start failed: {e}")
         emit("demo_status", {"session_id": "", "status": "failed", "error": str(e)})
+
+
+@socketio.on("set_saliency_mode")
+def handle_set_saliency_mode(data):
+    """Toggle saliency overlay mid-demo (off / policy / value)."""
+    session_id = data.get("session_id")
+    mode = data.get("mode", "off")
+    if mode not in ("off", "policy", "value"):
+        return
+    if session_id:
+        get_player().set_saliency_mode(session_id, mode)
 
 @socketio.on("stop_demo")
 def handle_stop_demo(data):

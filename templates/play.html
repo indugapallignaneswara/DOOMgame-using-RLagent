@@ -44,6 +44,25 @@
                     <input type="range" id="speedSlider" min="0.01" max="0.2" step="0.01" value="0.05">
                 </div>
 
+                <!-- Brain-cam: perturbation saliency overlay (Greydanus 2018).
+                     Off by default — when on, the agent's policy/value attention
+                     is computed every few frames and tinted onto the game view. -->
+                <div class="form-group mb-2">
+                    <label for="saliencyMode" title="Perturbation-based saliency: blur a region of the frame, see how much the agent's decision changes. Bright = the agent was relying on those pixels.">
+                        Brain-cam
+                        <span class="range-value" id="saliencyModeBadge" style="margin-left: 6px;">off</span>
+                    </label>
+                    <select class="form-control" id="saliencyMode">
+                        <option value="off" selected>Off</option>
+                        <option value="policy">Policy attention (what drives the action)</option>
+                        <option value="value">Value attention (what drives V(s))</option>
+                    </select>
+                </div>
+                <div class="form-group mb-2" id="saliencyOpacityRow" style="display:none;">
+                    <label for="saliencyOpacity">Overlay opacity: <span class="range-value" id="saliencyOpacityVal">60%</span></label>
+                    <input type="range" id="saliencyOpacity" min="10" max="100" step="5" value="60">
+                </div>
+
                 <div class="btn-group">
                     <button class="btn btn-primary" id="btnStartDemo"><i class="fas fa-play"></i> Start Demo</button>
                     <button class="btn btn-danger" id="btnStopDemo" disabled><i class="fas fa-stop"></i> Stop</button>
@@ -57,8 +76,14 @@
                     <h3><i class="fas fa-tv text-primary"></i> Game View</h3>
                     <span class="mono text-muted" id="demoStatusBadge">Idle</span>
                 </div>
-                <div class="game-container" id="gameContainer">
+                <div class="game-container" id="gameContainer" style="position: relative;">
                     <canvas id="gameCanvas" width="640" height="480"></canvas>
+                    <!-- Saliency overlay layer — drawn on top of the game canvas
+                         when Brain-cam is on. Pointer-events disabled so HUD/clicks
+                         pass through. -->
+                    <canvas id="saliencyCanvas" width="640" height="480"
+                            style="position: absolute; top: 0; left: 0;
+                                   pointer-events: none; opacity: 0;"></canvas>
                     <div class="scanline-overlay" id="scanlineOverlay"></div>
                     <div class="overlay-text" id="gameOverlay">SELECT A MODEL AND PRESS START</div>
                     <!-- HUD Overlay -->

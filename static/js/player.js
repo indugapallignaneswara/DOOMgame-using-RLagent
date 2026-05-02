@@ -20,6 +20,13 @@
     var gameContainer   = document.getElementById('gameContainer');
     var canvas          = document.getElementById('gameCanvas');
     var ctx             = canvas ? canvas.getContext('2d') : null;
+    var saliencyCanvas  = document.getElementById('saliencyCanvas');
+    var saliencyCtx     = saliencyCanvas ? saliencyCanvas.getContext('2d') : null;
+    var saliencyMode    = document.getElementById('saliencyMode');
+    var saliencyModeBadge = document.getElementById('saliencyModeBadge');
+    var saliencyOpacity = document.getElementById('saliencyOpacity');
+    var saliencyOpacityVal = document.getElementById('saliencyOpacityVal');
+    var saliencyOpacityRow = document.getElementById('saliencyOpacityRow');
     var actionOverlay   = document.getElementById('actionOverlay');
     var hudOverlay      = document.getElementById('hudOverlay');
     var scanlineToggle  = document.getElementById('scanlineToggle');
@@ -47,12 +54,56 @@
     // Preloaded image for frame rendering
     var frameImage = new Image();
 
+    // Saliency overlay — keep last received heatmap so we can re-draw it on
+    // every frame even when the server only sends a new one every K steps.
+    var lastSaliencyImage = null;
+
     // ---- Speed Slider ----
     if (speedSlider) {
         speedSlider.addEventListener('input', function () {
             speedVal.textContent = parseFloat(this.value).toFixed(2) + 's';
             if (isPlaying) {
                 socket.emit('set_demo_speed', { speed: parseFloat(this.value) });
+            }
+        });
+    }
+
+    // ---- Saliency mode dropdown ----
+    if (saliencyMode) {
+        saliencyMode.addEventListener('change', function () {
+            var mode = this.value;
+            if (saliencyModeBadge) saliencyModeBadge.textContent = mode;
+            // Show opacity slider only when overlay is on
+            if (saliencyOpacityRow) {
+                saliencyOpacityRow.style.display = (mode === 'off') ? 'none' : '';
+            }
+            // If we're switching off, clear the overlay immediately
+            if (mode === 'off' && saliencyCtx) {
+                saliencyCtx.clearRect(0, 0, saliencyCanvas.width, saliencyCanvas.height);
+                if (saliencyCanvas) saliencyCanvas.style.opacity = '0';
+                lastSaliencyImage = null;
+            } else if (saliencyCanvas) {
+                // Re-apply current opacity setting
+                var op = saliencyOpacity ? (parseInt(saliencyOpacity.value, 10) / 100) : 0.6;
+                saliencyCanvas.style.opacity = op.toString();
+            }
+            // Tell the server (only if a demo is running)
+            if (isPlaying && currentDemoSessionId) {
+                socket.emit('set_saliency_mode', {
+                    session_id: currentDemoSessionId,
+                    mode: mode
+                });
+            }
+        });
+    }
+
+    // ---- Saliency opacity slider (client-side only) ----
+    if (saliencyOpacity) {
+        saliencyOpacity.addEventListener('input', function () {
+            var pct = parseInt(this.value, 10);
+            if (saliencyOpacityVal) saliencyOpacityVal.textContent = pct + '%';
+            if (saliencyCanvas && saliencyMode && saliencyMode.value !== 'off') {
+                saliencyCanvas.style.opacity = (pct / 100).toString();
             }
         });
     }
@@ -146,11 +197,17 @@
         clearActionOverlay();
         updateHUD(100, 0, 0);
 
+        var sMode = saliencyMode ? saliencyMode.value : 'off';
         socket.emit('start_demo', {
             model_id: modelId,  // BUG-001 FIX: send as model_id
             scenario: scenarioSelect.value || '',
-            speed:    parseFloat(speedSlider.value)
+            speed:    parseFloat(speedSlider.value),
+            saliency_mode: sMode
         });
+        // Sync overlay opacity with the slider's current value
+        if (saliencyCanvas && sMode !== 'off' && saliencyOpacity) {
+            saliencyCanvas.style.opacity = (parseInt(saliencyOpacity.value, 10) / 100).toString();
+        }
 
         setPlayingState(true);
         if (gameOverlay) gameOverlay.style.display = 'none';
@@ -172,6 +229,33 @@
                 ctx.drawImage(frameImage, 0, 0, canvas.width, canvas.height);
             };
             frameImage.src = 'data:image/jpeg;base64,' + data.frame;
+        }
+
+        // ---- Saliency overlay (Brain-cam) ----
+        // The server only sends a new saliency PNG every K frames. We cache
+        // the last one and re-draw it on every frame so the overlay tracks
+        // the game frame visually instead of flickering on/off.
+        if (data.saliency_png) {
+            var img = new Image();
+            img.onload = function () {
+                lastSaliencyImage = img;
+                if (saliencyCtx && saliencyCanvas && saliencyMode &&
+                    saliencyMode.value !== 'off') {
+                    saliencyCtx.clearRect(0, 0,
+                        saliencyCanvas.width, saliencyCanvas.height);
+                    saliencyCtx.drawImage(img, 0, 0,
+                        saliencyCanvas.width, saliencyCanvas.height);
+                }
+            };
+            img.src = 'data:image/png;base64,' + data.saliency_png;
+        } else if (lastSaliencyImage && saliencyCtx && saliencyCanvas &&
+                   saliencyMode && saliencyMode.value !== 'off') {
+            // No new saliency this frame — keep showing the last one.
+            // (The clearRect+drawImage pattern is cheap on a 640x480 canvas.)
+            saliencyCtx.clearRect(0, 0,
+                saliencyCanvas.width, saliencyCanvas.height);
+            saliencyCtx.drawImage(lastSaliencyImage, 0, 0,
+                saliencyCanvas.width, saliencyCanvas.height);
         }
 
         // Update live stats

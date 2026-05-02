@@ -25,6 +25,10 @@ def main():
     ap.add_argument("--python", default="/root/doom-venv/bin/python")
     ap.add_argument("--scenarios", nargs="*", default=None,
                     help="Subset of scenarios; default = all")
+    ap.add_argument("--algos", nargs="*", default=["ppo"],
+                    help="Algorithms to run on each scenario (ppo|dqn|a2c)")
+    ap.add_argument("--total-timesteps", type=int, default=None,
+                    help="Override the per-scenario default_hyperparams.total_timesteps")
     args = ap.parse_args()
 
     os.makedirs(args.out_root, exist_ok=True)
@@ -42,22 +46,29 @@ def main():
     base_env["MKL_NUM_THREADS"] = "1"
     os.makedirs(base_env["WANDB_DIR"], exist_ok=True)
 
+    # Build the (algo, scenario) cartesian product to launch.
+    jobs = [(algo, s) for algo in args.algos for s in scenarios]
+
     procs = {}
-    for s in scenarios:
-        out_dir = os.path.join(args.out_root, s)
+    for algo, s in jobs:
+        tag = f"{algo}_{s}"
+        out_dir = os.path.join(args.out_root, s, algo)
         os.makedirs(out_dir, exist_ok=True)
-        log_path = os.path.join(args.log_dir, f"{s}.log")
+        log_path = os.path.join(args.log_dir, f"{tag}.log")
         log_fh = open(log_path, "w", buffering=1)
 
         cmd = [
             args.python, "-u",
             os.path.join(REPO_ROOT, "train_one.py"),
             "--scenario", s,
+            "--algo", algo,
             "--out-dir", out_dir,
             "--wandb-project", args.wandb_project,
         ]
         if args.wandb_entity:
             cmd += ["--wandb-entity", args.wandb_entity]
+        if args.total_timesteps:
+            cmd += ["--total-timesteps", str(args.total_timesteps)]
 
         env = base_env.copy()
         # Use MIOpen's defaults: ~/.config/miopen for the SQLite kernel DB,
@@ -69,8 +80,8 @@ def main():
         # the rest start.
 
         p = subprocess.Popen(cmd, stdout=log_fh, stderr=subprocess.STDOUT, env=env, cwd=REPO_ROOT)
-        procs[s] = (p, log_fh, log_path)
-        print(f"launched {s} pid={p.pid} -> {log_path}", flush=True)
+        procs[tag] = (p, log_fh, log_path)
+        print(f"launched {tag} pid={p.pid} -> {log_path}", flush=True)
         # Long stagger ONLY for the first process (which does the cold compile);
         # after that, kernels are cached so subsequent procs can start fast.
         time.sleep(90 if len(procs) == 1 else 8)
@@ -79,20 +90,20 @@ def main():
     pending = set(procs.keys())
     while pending:
         time.sleep(15)
-        for s in list(pending):
-            p, _, log_path = procs[s]
+        for tag in list(pending):
+            p, _, log_path = procs[tag]
             rc = p.poll()
             if rc is not None:
-                pending.discard(s)
+                pending.discard(tag)
                 status = "OK" if rc == 0 else f"FAIL rc={rc}"
-                print(f"[done] {s}: {status} (log: {log_path})", flush=True)
+                print(f"[done] {tag}: {status} (log: {log_path})", flush=True)
 
     # Summary
     print("\n=== summary ===")
     bad = 0
-    for s, (p, _, log_path) in procs.items():
+    for tag, (p, _, log_path) in procs.items():
         rc = p.returncode
-        print(f"  {s}: rc={rc}  log={log_path}")
+        print(f"  {tag}: rc={rc}  log={log_path}")
         if rc != 0:
             bad += 1
     sys.exit(0 if bad == 0 else 1)
