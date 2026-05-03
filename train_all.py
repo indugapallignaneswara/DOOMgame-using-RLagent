@@ -29,6 +29,10 @@ def main():
                     help="Algorithms to run on each scenario (ppo|dqn|a2c)")
     ap.add_argument("--total-timesteps", type=int, default=None,
                     help="Override the per-scenario default_hyperparams.total_timesteps")
+    ap.add_argument("--no-reward-shaping", action="store_true",
+                    help="Disable RewardShapingWrapper for all runs in this batch")
+    ap.add_argument("--out-suffix", default="",
+                    help="Suffix appended to per-scenario subdirs (e.g. 'noshape')")
     args = ap.parse_args()
 
     os.makedirs(args.out_root, exist_ok=True)
@@ -51,8 +55,9 @@ def main():
 
     procs = {}
     for algo, s in jobs:
-        tag = f"{algo}_{s}"
-        out_dir = os.path.join(args.out_root, s, algo)
+        tag = f"{algo}_{s}" + (f"_{args.out_suffix}" if args.out_suffix else "")
+        subdir = algo + (f"_{args.out_suffix}" if args.out_suffix else "")
+        out_dir = os.path.join(args.out_root, s, subdir)
         os.makedirs(out_dir, exist_ok=True)
         log_path = os.path.join(args.log_dir, f"{tag}.log")
         log_fh = open(log_path, "w", buffering=1)
@@ -69,6 +74,8 @@ def main():
             cmd += ["--wandb-entity", args.wandb_entity]
         if args.total_timesteps:
             cmd += ["--total-timesteps", str(args.total_timesteps)]
+        if args.no_reward_shaping:
+            cmd += ["--no-reward-shaping"]
 
         env = base_env.copy()
         # Use MIOpen's defaults: ~/.config/miopen for the SQLite kernel DB,

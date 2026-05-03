@@ -356,8 +356,9 @@ def handle_start_demo(data):
         saliency_mode = data.get("saliency_mode", "off")
         if saliency_mode not in ("off", "policy", "value"):
             saliency_mode = "off"
+        prediction_mode = bool(data.get("prediction_mode", False))
+        prediction_every = int(data.get("prediction_every", 8))
 
-        # Look up model path from registry if model_id given
         model_id = data.get("model_id")
         if model_id and not model_path:
             registry = load_registry()
@@ -373,7 +374,9 @@ def handle_start_demo(data):
 
         p = get_player()
         p.start_demo(session_id, model_path, scenario_key, speed,
-                     saliency_mode=saliency_mode)
+                     saliency_mode=saliency_mode,
+                     prediction_mode=prediction_mode,
+                     prediction_every=prediction_every)
         emit("demo_status", {"session_id": session_id, "status": "started"})
 
     except Exception as e:
@@ -390,6 +393,25 @@ def handle_set_saliency_mode(data):
         return
     if session_id:
         get_player().set_saliency_mode(session_id, mode)
+
+
+@socketio.on("set_prediction_mode")
+def handle_set_prediction_mode(data):
+    session_id = data.get("session_id")
+    enabled = bool(data.get("enabled", False))
+    every = data.get("every")
+    if session_id:
+        get_player().set_prediction_mode(session_id, enabled,
+                                         every=int(every) if every else None)
+
+
+@socketio.on("prediction_response")
+def handle_prediction_response(data):
+    session_id = data.get("session_id")
+    choice = data.get("choice")
+    if session_id is None:
+        return
+    get_player().submit_prediction(session_id, choice)
 
 @socketio.on("stop_demo")
 def handle_stop_demo(data):

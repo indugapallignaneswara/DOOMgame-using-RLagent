@@ -30,9 +30,9 @@ from doom.rewards import RewardShapingWrapper
 ALGOS = {"ppo": PPO, "dqn": DQN, "a2c": A2C}
 
 
-def build_env(scenario_key, reward_config):
+def build_env(scenario_key, reward_config, use_shaping: bool = True):
     env = VizDoomGym(scenario_key, render=False)
-    if any(v != 0 for v in reward_config.values()):
+    if use_shaping and any(v != 0 for v in reward_config.values()):
         env = RewardShapingWrapper(env, **reward_config)
     env = Monitor(env)
     return env
@@ -120,6 +120,8 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--total-timesteps", type=int, default=None,
                     help="Override scenario default_hyperparams total_timesteps")
+    ap.add_argument("--no-reward-shaping", action="store_true",
+                    help="Skip the RewardShapingWrapper; use raw env reward only")
     args = ap.parse_args()
 
     scenario = get_scenario(args.scenario)
@@ -149,7 +151,7 @@ def main():
         tags=[args.algo, args.scenario],
     )
 
-    env = build_env(args.scenario, rc)
+    env = build_env(args.scenario, rc, use_shaping=not args.no_reward_shaping)
 
     tb_log = os.path.join(args.out_dir, "tb")
     model = _build_model(args.algo, env, hp, total_timesteps,

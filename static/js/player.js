@@ -28,8 +28,25 @@
     var saliencyOpacityVal = document.getElementById('saliencyOpacityVal');
     var saliencyOpacityRow = document.getElementById('saliencyOpacityRow');
     var actionOverlay   = document.getElementById('actionOverlay');
+    var actionProbs     = document.getElementById('actionProbs');
     var hudOverlay      = document.getElementById('hudOverlay');
     var scanlineToggle  = document.getElementById('scanlineToggle');
+
+    // Belief Inspector
+    var predictionToggle = document.getElementById('predictionToggle');
+    var predictionEvery  = document.getElementById('predictionEvery');
+    var predictionScoreBadge = document.getElementById('predictionScoreBadge');
+    var predictionScore  = document.getElementById('predictionScore');
+    var predictionWidget = document.getElementById('predictionWidget');
+    var predictionPrompt = document.getElementById('predictionPrompt');
+    var predictionButtons = document.getElementById('predictionButtons');
+    var predictionReveal = document.getElementById('predictionReveal');
+    var valueSparkline   = document.getElementById('valueSparkline');
+    var valueCurrentEl   = document.getElementById('valueCurrent');
+    var valueSparkCtx    = valueSparkline ? valueSparkline.getContext('2d') : null;
+    var valueHistory     = [];
+    var VALUE_HISTORY_MAX = 200;
+    var awaitingPrediction = false;
 
     // Stats
     var currentRewardEl = document.getElementById('currentReward');
@@ -104,6 +121,37 @@
             if (saliencyOpacityVal) saliencyOpacityVal.textContent = pct + '%';
             if (saliencyCanvas && saliencyMode && saliencyMode.value !== 'off') {
                 saliencyCanvas.style.opacity = (pct / 100).toString();
+            }
+        });
+    }
+
+    // ---- Prediction-mode toggle ----
+    if (predictionToggle) {
+        predictionToggle.addEventListener('change', function () {
+            var enabled = this.checked;
+            if (isPlaying && currentDemoSessionId) {
+                socket.emit('set_prediction_mode', {
+                    session_id: currentDemoSessionId,
+                    enabled: enabled,
+                    every: predictionEvery ? parseInt(predictionEvery.value, 10) : 8
+                });
+            }
+            if (!enabled) {
+                hidePredictionWidget();
+            }
+        });
+    }
+    if (predictionEvery) {
+        predictionEvery.addEventListener('change', function () {
+            // The interval only takes effect when prediction mode is on; if it
+            // is, push the new cadence to the running demo immediately.
+            if (predictionToggle && predictionToggle.checked &&
+                isPlaying && currentDemoSessionId) {
+                socket.emit('set_prediction_mode', {
+                    session_id: currentDemoSessionId,
+                    enabled: true,
+                    every: parseInt(predictionEvery.value, 10)
+                });
             }
         });
     }
@@ -198,12 +246,22 @@
         updateHUD(100, 0, 0);
 
         var sMode = saliencyMode ? saliencyMode.value : 'off';
+        var pMode = predictionToggle ? predictionToggle.checked : false;
+        var pEvery = predictionEvery ? parseInt(predictionEvery.value, 10) : 8;
         socket.emit('start_demo', {
             model_id: modelId,  // BUG-001 FIX: send as model_id
             scenario: scenarioSelect.value || '',
             speed:    parseFloat(speedSlider.value),
-            saliency_mode: sMode
+            saliency_mode: sMode,
+            prediction_mode: pMode,
+            prediction_every: pEvery
         });
+        // Reset belief-inspector state
+        valueHistory = [];
+        clearActionProbs();
+        hidePredictionWidget();
+        updatePredictionScore(0, 0);
+        drawValueSparkline();
         // Sync overlay opacity with the slider's current value
         if (saliencyCanvas && sMode !== 'off' && saliencyOpacity) {
             saliencyCanvas.style.opacity = (parseInt(saliencyOpacity.value, 10) / 100).toString();
@@ -273,6 +331,20 @@
             renderActionOverlay(currentButtons, data.action, data.action_name);
         }
 
+        // Belief Inspector — only render bars when the prediction widget
+        // isn't holding the screen (Kapoor: no overlay during the freeze).
+        if (!awaitingPrediction && data.action_probs && currentButtons.length > 0) {
+            renderActionProbs(currentButtons, data.action_probs, data.action);
+        }
+        if (typeof data.value === 'number') {
+            valueHistory.push(data.value);
+            if (valueHistory.length > VALUE_HISTORY_MAX) {
+                valueHistory.shift();
+            }
+            if (valueCurrentEl) valueCurrentEl.textContent = data.value.toFixed(2);
+            drawValueSparkline();
+        }
+
         // Update HUD overlay with game variables
         if (data.info) {
             var health = data.info.health !== undefined ? data.info.health : 100;
@@ -291,6 +363,29 @@
         }
     });
 
+    // ---- Prediction-before-reveal events (Kapoor) ----
+    socket.on('prediction_request', function (data) {
+        if (!data || !data.top3_actions) return;
+        if (data.session_id) currentDemoSessionId = data.session_id;
+        // Server already paints a fresh frame for us inside the request — paint
+        // it here so the user sees the *current* state without the action overlay.
+        if (data.frame && ctx) {
+            var img = new Image();
+            img.onload = function () {
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            };
+            img.src = 'data:image/jpeg;base64,' + data.frame;
+        }
+        showPredictionWidget(data.top3_actions, data.buttons || currentButtons,
+                             data.freeze_ms || 800);
+    });
+
+    socket.on('prediction_result', function (data) {
+        if (!data) return;
+        revealPrediction(data);
+        updatePredictionScore(data.correct_count, data.total_count);
+    });
+
     // ---- Demo Status Event ----
     socket.on('demo_status', function (data) {
         var status = data.status;
@@ -302,6 +397,7 @@
             if (gameOverlay) gameOverlay.style.display = 'none';
         } else if (status === 'stopped' || status === 'error' || status === 'failed') {
             setPlayingState(false);
+            hidePredictionWidget();
             if (gameOverlay) {
                 gameOverlay.style.display = '';
                 // BUG-007 FIX: read data.error, not data.message
@@ -377,6 +473,185 @@
 
     function formatButtonName(name) {
         return name.replace('MOVE_', '').replace('TURN_', 'T-');
+    }
+
+    // ---- Belief Inspector: action-probability bars ----
+    function renderActionProbs(buttons, probs, activeIdx) {
+        if (!actionProbs) return;
+        var n = Math.min(buttons.length, probs.length);
+        var rows = '';
+        for (var i = 0; i < n; i++) {
+            var p = probs[i] || 0;
+            var pct = Math.round(p * 1000) / 10;
+            var cls = 'action-prob-row' + (i === activeIdx ? ' active' : '');
+            rows +=
+                '<div class="' + cls + '">' +
+                  '<div class="ap-label">' + formatButtonName(buttons[i]) + '</div>' +
+                  '<div class="ap-track"><div class="ap-fill" style="width:' +
+                    (p * 100).toFixed(1) + '%"></div></div>' +
+                  '<div class="ap-pct">' + pct.toFixed(1) + '%</div>' +
+                '</div>';
+        }
+        actionProbs.innerHTML = rows;
+    }
+    function clearActionProbs() {
+        if (actionProbs) actionProbs.innerHTML = '';
+    }
+
+    // ---- Belief Inspector: V(s) sparkline ----
+    // Hand-rolled because uPlot isn't bundled. Min-max auto-scaled per draw.
+    function drawValueSparkline() {
+        if (!valueSparkCtx || !valueSparkline) return;
+        var w = valueSparkline.width;
+        var h = valueSparkline.height;
+        valueSparkCtx.clearRect(0, 0, w, h);
+        if (valueHistory.length < 2) return;
+
+        var lo = Infinity, hi = -Infinity;
+        for (var i = 0; i < valueHistory.length; i++) {
+            var v = valueHistory[i];
+            if (v < lo) lo = v;
+            if (v > hi) hi = v;
+        }
+        if (hi - lo < 1e-6) { hi = lo + 1; lo = lo - 1; }
+        var pad = 4;
+        var plotH = h - pad * 2;
+        var plotW = w - pad * 2;
+        var n = valueHistory.length;
+
+        // Zero baseline (V(s) crossing 0 is meaningful; show it if in range).
+        if (lo < 0 && hi > 0) {
+            var zy = pad + plotH * (1 - (0 - lo) / (hi - lo));
+            valueSparkCtx.strokeStyle = 'rgba(255,255,255,0.08)';
+            valueSparkCtx.setLineDash([3, 3]);
+            valueSparkCtx.beginPath();
+            valueSparkCtx.moveTo(pad, zy);
+            valueSparkCtx.lineTo(w - pad, zy);
+            valueSparkCtx.stroke();
+            valueSparkCtx.setLineDash([]);
+        }
+
+        valueSparkCtx.strokeStyle = '#00f0ff';
+        valueSparkCtx.lineWidth = 1.5;
+        valueSparkCtx.beginPath();
+        for (var j = 0; j < n; j++) {
+            var x = pad + (n === 1 ? 0 : (j / (n - 1)) * plotW);
+            var y = pad + plotH * (1 - (valueHistory[j] - lo) / (hi - lo));
+            if (j === 0) valueSparkCtx.moveTo(x, y);
+            else valueSparkCtx.lineTo(x, y);
+        }
+        valueSparkCtx.stroke();
+
+        // Latest point dot for emphasis
+        var lx = pad + plotW;
+        var ly = pad + plotH * (1 - (valueHistory[n - 1] - lo) / (hi - lo));
+        valueSparkCtx.fillStyle = '#00f0ff';
+        valueSparkCtx.beginPath();
+        valueSparkCtx.arc(lx, ly, 2.5, 0, Math.PI * 2);
+        valueSparkCtx.fill();
+    }
+
+    // ---- Prediction-before-reveal widget ----
+    function showPredictionWidget(top3, buttons, freezeMs) {
+        if (!predictionWidget) return;
+        awaitingPrediction = true;
+        // Hide overlays during the freeze (Kapoor: no policy info before guess).
+        clearActionProbs();
+        if (saliencyCanvas) saliencyCanvas.style.opacity = '0';
+        if (predictionReveal) {
+            predictionReveal.style.display = 'none';
+            predictionReveal.textContent = '';
+        }
+        predictionWidget.style.display = 'flex';
+        predictionPrompt.textContent = 'What action will the agent take?';
+        predictionButtons.innerHTML = '';
+
+        // Hold the buttons disabled for `freezeMs` so the user studies the
+        // unaltered frame first, then the buttons activate.
+        var btnEls = [];
+        top3.forEach(function (idx) {
+            var b = document.createElement('button');
+            b.className = 'prediction-btn disabled';
+            b.dataset.choice = String(idx);
+            b.textContent = buttons[idx] !== undefined
+                ? formatButtonName(buttons[idx])
+                : ('ACTION ' + idx);
+            predictionButtons.appendChild(b);
+            btnEls.push(b);
+        });
+        var other = document.createElement('button');
+        other.className = 'prediction-btn other disabled';
+        other.dataset.choice = 'skip';
+        other.textContent = "Other / I'm not sure";
+        predictionButtons.appendChild(other);
+        btnEls.push(other);
+
+        function onClick(ev) {
+            var choice = ev.currentTarget.dataset.choice;
+            btnEls.forEach(function (bb) { bb.classList.add('disabled'); });
+            ev.currentTarget.classList.remove('disabled');
+            ev.currentTarget.style.outline = '2px solid var(--secondary)';
+            socket.emit('prediction_response', {
+                session_id: currentDemoSessionId,
+                choice: choice
+            });
+        }
+
+        setTimeout(function () {
+            btnEls.forEach(function (bb) {
+                bb.classList.remove('disabled');
+                bb.addEventListener('click', onClick);
+            });
+        }, freezeMs);
+    }
+
+    function revealPrediction(result) {
+        if (!predictionWidget) return;
+        var btns = predictionButtons.querySelectorAll('.prediction-btn');
+        btns.forEach(function (b) {
+            b.classList.add('disabled');
+            b.style.outline = '';
+            var choice = b.dataset.choice;
+            if (choice === String(result.actual_action)) {
+                b.classList.add('actual');
+            }
+            if (result.user_choice !== undefined &&
+                choice === String(result.user_choice)) {
+                b.classList.add(result.correct ? 'correct' : 'wrong');
+            }
+        });
+        if (predictionReveal) {
+            predictionReveal.style.display = '';
+            predictionReveal.className = 'prediction-reveal ' +
+                (result.correct ? 'correct' : 'wrong');
+            predictionReveal.textContent = result.correct
+                ? 'Correct! The agent chose action ' + result.actual_action + '.'
+                : 'Not quite — the agent chose action ' + result.actual_action + '.';
+        }
+        // Auto-dismiss so play resumes smoothly.
+        setTimeout(hidePredictionWidget, 1200);
+    }
+
+    function hidePredictionWidget() {
+        awaitingPrediction = false;
+        if (predictionWidget) predictionWidget.style.display = 'none';
+        if (predictionButtons) predictionButtons.innerHTML = '';
+        if (predictionReveal) {
+            predictionReveal.style.display = 'none';
+            predictionReveal.textContent = '';
+            predictionReveal.className = 'prediction-reveal';
+        }
+        // Restore saliency overlay opacity if Brain-cam is on.
+        if (saliencyCanvas && saliencyMode && saliencyMode.value !== 'off' && saliencyOpacity) {
+            saliencyCanvas.style.opacity =
+                (parseInt(saliencyOpacity.value, 10) / 100).toString();
+        }
+    }
+
+    function updatePredictionScore(correct, total) {
+        var label = correct + ' / ' + total + (total > 0 ? ' correct' : '');
+        if (predictionScore) predictionScore.textContent = label;
+        if (predictionScoreBadge) predictionScoreBadge.textContent = correct + ' / ' + total;
     }
 
     // ---- HUD Overlay ----

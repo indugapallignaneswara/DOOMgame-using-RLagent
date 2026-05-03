@@ -63,6 +63,28 @@
                     <input type="range" id="saliencyOpacity" min="10" max="100" step="5" value="60">
                 </div>
 
+                <!-- Prediction mode (Kapoor): pause every Nth step and let
+                     the player guess the action before the agent reveals it.
+                     Independent of Brain-cam; both can be on simultaneously. -->
+                <div class="form-group mb-2">
+                    <label for="predictionToggle" title="Periodically pause and ask the user to predict the agent's next action before the reveal.">
+                        Prediction mode
+                        <span class="range-value" id="predictionScoreBadge" style="margin-left:6px;">0 / 0</span>
+                    </label>
+                    <div class="flex gap-1" style="align-items:center;">
+                        <label class="scanline-toggle-label">
+                            <input type="checkbox" id="predictionToggle">
+                            <span class="scanline-toggle-text">on</span>
+                        </label>
+                        <span class="text-muted mono" style="font-size:0.75rem;">every</span>
+                        <input type="number" id="predictionEvery" min="2" max="50" value="8"
+                               style="width:60px; padding:4px 6px; background:rgba(255,255,255,0.04);
+                                      border:1px solid var(--border); border-radius:4px;
+                                      color:var(--text); font-family:var(--font-mono); font-size:0.8rem;">
+                        <span class="text-muted mono" style="font-size:0.75rem;">steps</span>
+                    </div>
+                </div>
+
                 <div class="btn-group">
                     <button class="btn btn-primary" id="btnStartDemo"><i class="fas fa-play"></i> Start Demo</button>
                     <button class="btn btn-danger" id="btnStopDemo" disabled><i class="fas fa-stop"></i> Stop</button>
@@ -86,6 +108,14 @@
                                    pointer-events: none; opacity: 0;"></canvas>
                     <div class="scanline-overlay" id="scanlineOverlay"></div>
                     <div class="overlay-text" id="gameOverlay">SELECT A MODEL AND PRESS START</div>
+                    <!-- Prediction widget — overlays the game while waiting for
+                         the user's guess. Hidden by default; shown by player.js
+                         when a `prediction_request` arrives. -->
+                    <div class="prediction-widget" id="predictionWidget" style="display:none;">
+                        <div class="prediction-prompt" id="predictionPrompt">What action will the agent take?</div>
+                        <div class="prediction-buttons" id="predictionButtons"></div>
+                        <div class="prediction-reveal" id="predictionReveal" style="display:none;"></div>
+                    </div>
                     <!-- HUD Overlay -->
                     <div class="hud-overlay" id="hudOverlay">
                         <div class="hud-item hud-health">
@@ -115,6 +145,10 @@
                 <div class="action-overlay" id="actionOverlay">
                     <div class="action-key-placeholder">Start demo to see AI actions</div>
                 </div>
+                <!-- Belief Inspector: action-probability bars. Visually distinct
+                     from V(s) sparkline (Iyer's review). Each bar = π(a|s); the
+                     chosen-action bar gets the primary highlight. -->
+                <div class="action-probs" id="actionProbs"></div>
             </div>
         </div>
 
@@ -141,6 +175,15 @@
                     <div class="stat-card">
                         <div class="stat-label">Episode #</div>
                         <div class="stat-value" id="episodeCount" style="font-size:1.4rem;">0</div>
+                    </div>
+                    <div class="stat-card" style="grid-column: span 2;">
+                        <div class="stat-label">V(s) — last 200 steps <span class="text-muted mono" id="valueCurrent" style="float:right;">—</span></div>
+                        <canvas id="valueSparkline" width="320" height="60"
+                                style="width:100%; height:60px; display:block; margin-top:4px;"></canvas>
+                    </div>
+                    <div class="stat-card" style="grid-column: span 2;">
+                        <div class="stat-label">Predictions</div>
+                        <div class="stat-value" id="predictionScore" style="font-size:1.4rem;">0 / 0 correct</div>
                     </div>
                 </div>
             </div>
