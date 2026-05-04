@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}Lessons{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-graduation-cap"></i> RL Lessons</h1>
+    <p class="page-subtitle">Side-by-side comparisons that reveal what RL actually learns</p>
+</div>
+
+<!-- Lesson Tabs -->
+<div class="lesson-tabs">
+    <button class="lesson-tab active" data-lesson="algo-compare">
+        <i class="fas fa-balance-scale"></i> PPO vs DQN vs A2C
+    </button>
+    <button class="lesson-tab" data-lesson="shaping">
+        <i class="fas fa-magic"></i> Reward Shaping
+    </button>
+    <button class="lesson-tab" data-lesson="hacking">
+        <i class="fas fa-bug"></i> Reward Hacking
+    </button>
+</div>
+
+<!-- Lesson: Algorithm Comparison -->
+<div class="lesson-panel active" id="lesson-algo-compare">
+    <div class="lesson-controls">
+        <label>Scenario:</label>
+        <select id="algoScenarioSelect" class="form-select">
+            <option value="">Select scenario...</option>
+        </select>
+    </div>
+
+    <div class="lesson-grid" id="algoCompareGrid">
+        <!-- Dynamically populated -->
+    </div>
+
+    <div class="chart-container">
+        <canvas id="algoCompareChart"></canvas>
+    </div>
+
+    <div class="insight-box">
+        <h3><i class="fas fa-lightbulb"></i> Key Insights</h3>
+        <ul id="algoInsights">
+            <li><strong>A2C diverges on basic (−300.8)</strong> — collapses where PPO/DQN succeed. On-policy without clipping is fragile.</li>
+            <li><strong>DQN beats PPO on health_gathering (+125)</strong> — replay buffer wins on sparse-reward survival tasks.</li>
+            <li><strong>PPO is the safest default</strong> — never catastrophically fails, but isn't always best.</li>
+        </ul>
+    </div>
+</div>
+
+<!-- Lesson: Reward Shaping -->
+<div class="lesson-panel" id="lesson-shaping">
+    <div class="lesson-controls">
+        <label>Scenario:</label>
+        <select id="shapingScenarioSelect" class="form-select">
+            <option value="">Select scenario...</option>
+        </select>
+    </div>
+
+    <div class="lesson-grid" id="shapingCompareGrid">
+        <!-- Shaped vs Unshaped cards -->
+    </div>
+
+    <div class="chart-container">
+        <canvas id="shapingCompareChart"></canvas>
+    </div>
+
+    <div class="insight-box">
+        <h3><i class="fas fa-lightbulb"></i> Key Insights</h3>
+        <ul>
+            <li><strong>Shaping is NOT a free lunch</strong> — helps on 2–3 of 9 scenarios, hurts on 4–5.</li>
+            <li><strong>Strongest positive: take_cover (+81.5)</strong> — step penalty encourages active dodging.</li>
+            <li><strong>Strongest negative: health_gathering (−27.9)</strong> — shaping rewards distract from the survival objective.</li>
+        </ul>
+    </div>
+
+    <!-- Shaping Delta Table -->
+    <div class="data-table-container">
+        <h3>Reward Shaping Impact (Δ = shaped − unshaped)</h3>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Scenario</th>
+                    <th>PPO (shaped)</th>
+                    <th>PPO (no-shape)</th>
+                    <th>Δ</th>
+                    <th>Verdict</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>basic</td><td>80.2</td><td>79.9</td><td class="delta-positive">+0.3</td><td>Negligible</td></tr>
+                <tr><td>defend_the_line</td><td>17.3</td><td>20.3</td><td class="delta-negative">−3.0</td><td>Hurts</td></tr>
+                <tr><td>defend_the_center</td><td>9.6</td><td>12.6</td><td class="delta-negative">−3.0</td><td>Hurts</td></tr>
+                <tr><td>take_cover</td><td>356.3</td><td>274.8</td><td class="delta-positive">+81.5</td><td>Helps!</td></tr>
+                <tr><td>health_gathering</td><td>287.8</td><td>315.7</td><td class="delta-negative">−27.9</td><td>Hurts</td></tr>
+                <tr><td>my_way_home</td><td>−2.6</td><td>0.1</td><td class="delta-negative">−2.7</td><td>Hurts</td></tr>
+                <tr><td>deadly_corridor_s1</td><td>2042.4</td><td>2070.9</td><td class="delta-negative">−28.5</td><td>Hurts</td></tr>
+                <tr><td>deadly_corridor_s3</td><td>1251.8</td><td>1210.8</td><td class="delta-positive">+41.0</td><td>Helps</td></tr>
+                <tr><td>deadly_corridor_s5</td><td>228.6</td><td>223.0</td><td class="delta-positive">+5.6</td><td>Marginal</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Lesson: Reward Hacking Gallery -->
+<div class="lesson-panel" id="lesson-hacking">
+    <div class="hacking-gallery">
+        <div class="hacking-card">
+            <div class="hacking-card-header">
+                <span class="hacking-tag danger">REWARD HACK</span>
+                <h3>The Pacifist Sprinter</h3>
+            </div>
+            <div class="hacking-card-body">
+                <p><strong>Scenario:</strong> deadly_corridor_s1</p>
+                <p><strong>Agent:</strong> PPO (shaped)</p>
+                <p><strong>Reward:</strong> 2042.4 (highest in the batch!)</p>
+                <div class="hacking-explanation">
+                    <p>This agent fires ATTACK <strong>0%</strong> of the time in deterministic eval.
+                    It sprints MOVE_FORWARD through the corridor, collecting all navigation/reach-vest
+                    rewards without ever fighting.</p>
+                    <p class="lesson-moral"><i class="fas fa-exclamation-triangle"></i>
+                    <strong>Lesson:</strong> Your reward function rewards what you <em>measure</em>,
+                    not what you <em>intend</em>. The 200× kill reward never fires because
+                    the nav reward is easier to exploit.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="hacking-card">
+            <div class="hacking-card-header">
+                <span class="hacking-tag warning">DIVERGENCE</span>
+                <h3>A2C's Catastrophic Collapse</h3>
+            </div>
+            <div class="hacking-card-body">
+                <p><strong>Scenario:</strong> basic</p>
+                <p><strong>Agent:</strong> A2C</p>
+                <p><strong>Reward:</strong> −300.8 (while PPO gets +80!)</p>
+                <div class="hacking-explanation">
+                    <p>A2C's lack of trust-region clipping means a single bad gradient update
+                    can destroy the policy. On this simple scenario where PPO and DQN succeed
+                    trivially, A2C spirals into always choosing the same action.</p>
+                    <p class="lesson-moral"><i class="fas fa-exclamation-triangle"></i>
+                    <strong>Lesson:</strong> Algorithm stability matters more than sample
+                    efficiency. PPO's clip constraint prevents this exact failure mode.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="hacking-card">
+            <div class="hacking-card-header">
+                <span class="hacking-tag success">SURPRISE WIN</span>
+                <h3>DQN's Replay Buffer Advantage</h3>
+            </div>
+            <div class="hacking-card-body">
+                <p><strong>Scenario:</strong> health_gathering</p>
+                <p><strong>Agent:</strong> DQN</p>
+                <p><strong>Reward:</strong> 413.3 (PPO: 287.8)</p>
+                <div class="hacking-explanation">
+                    <p>DQN's experience replay lets it revisit rare successful episodes
+                    (finding health packs on a toxic floor) many times. PPO only trains
+                    on the most recent rollout and forgets rare successes.</p>
+                    <p class="lesson-moral"><i class="fas fa-exclamation-triangle"></i>
+                    <strong>Lesson:</strong> Off-policy replay is a superpower for
+                    sparse-reward environments. On-policy methods waste rare positive signals.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/lessons.js') }}"></script>
+{% endblock %}

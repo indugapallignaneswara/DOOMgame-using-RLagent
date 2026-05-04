@@ -13,6 +13,27 @@ import config
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
+
+# ─── Security helpers ───
+
+def _is_safe_model_path(path: str) -> bool:
+    """Validate that a model path is within allowed directories."""
+    if not path:
+        return False
+    try:
+        real = os.path.realpath(path)
+        allowed = [
+            os.path.realpath(config.MODELS_DIR),
+            os.path.realpath(config.TRAIN_DIR),
+        ]
+        return any(real.startswith(d) for d in allowed)
+    except (ValueError, OSError):
+        return False
+
+
+def _clamp(val, lo, hi):
+    return max(lo, min(hi, val))
+
 app = Flask(__name__)
 app.config["SECRET_KEY"] = config.SECRET_KEY
 
@@ -139,6 +160,10 @@ def evaluate_page():
 def mindmap_page():
     return render_template("mindmap.html")
 
+@app.route("/lessons")
+def lessons_page():
+    return render_template("lessons.html")
+
 # ─── API Routes ───
 
 @app.route("/api/scenarios")
@@ -195,6 +220,46 @@ def api_delete_model(model_id):
     registry["models"] = [m for m in registry["models"] if m["id"] != model_id]
     save_registry(registry)
     return jsonify({"success": True})
+
+# ─── W&B Model API ───
+
+@app.route("/api/wandb/models")
+def api_wandb_models():
+    """List all model artifacts available in W&B."""
+    try:
+        from doom.wandb_loader import list_wandb_artifacts
+        artifacts = list_wandb_artifacts()
+        return jsonify({"artifacts": artifacts})
+    except Exception as e:
+        logger.error(f"W&B list failed: {e}")
+        return jsonify({"error": str(e), "artifacts": []}), 500
+
+@app.route("/api/wandb/download", methods=["POST"])
+def api_wandb_download():
+    """Download a W&B model artifact and register it locally."""
+    try:
+        data = request.get_json()
+        artifact_name = data.get("artifact_name")
+        if not artifact_name:
+            return jsonify({"error": "artifact_name required"}), 400
+
+        from doom.wandb_loader import download_and_register
+        entry = download_and_register(artifact_name, version=data.get("version", "latest"))
+        return jsonify({"success": True, "model": entry})
+    except Exception as e:
+        logger.error(f"W&B download failed: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/wandb/sync", methods=["POST"])
+def api_wandb_sync():
+    """Sync all W&B model artifacts to local registry."""
+    try:
+        from doom.wandb_loader import sync_all_wandb_models
+        results = sync_all_wandb_models()
+        return jsonify({"success": True, "synced": len(results), "models": results})
+    except Exception as e:
+        logger.error(f"W&B sync failed: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/training/status")
 def api_training_status():
@@ -292,23 +357,23 @@ def handle_start_training(data):
         from datetime import datetime
         session_id = str(uuid.uuid4())[:8]
         scenario_key = data.get("scenario", "basic")
-        total_timesteps = int(data.get("total_timesteps", 100000))
+        total_timesteps = _clamp(int(data.get("total_timesteps", 100000)), 10000, 2000000)
         username = data.get("user", "anonymous")
 
         hyperparams = {
-            "learning_rate": float(data.get("learning_rate", 0.0001)),
-            "n_steps": int(data.get("n_steps", 2048)),
-            "clip_range": float(data.get("clip_range", 0.2)),
-            "gamma": float(data.get("gamma", 0.99)),
-            "gae_lambda": float(data.get("gae_lambda", 0.95)),
+            "learning_rate": _clamp(float(data.get("learning_rate", 0.0001)), 1e-7, 1e-1),
+            "n_steps": _clamp(int(data.get("n_steps", 2048)), 64, 16384),
+            "clip_range": _clamp(float(data.get("clip_range", 0.2)), 0.01, 0.5),
+            "gamma": _clamp(float(data.get("gamma", 0.99)), 0.8, 0.999),
+            "gae_lambda": _clamp(float(data.get("gae_lambda", 0.95)), 0.8, 1.0),
         }
 
         reward_config = {
-            "kill_reward": float(data.get("kill_reward", 0)),
-            "miss_penalty": float(data.get("miss_penalty", 0)),
-            "step_penalty": float(data.get("step_penalty", 0)),
-            "damage_penalty": float(data.get("damage_penalty", 0)),
-            "ammo_penalty": float(data.get("ammo_penalty", 0)),
+            "kill_reward": _clamp(float(data.get("kill_reward", 0)), -500, 500),
+            "miss_penalty": _clamp(float(data.get("miss_penalty", 0)), -500, 500),
+            "step_penalty": _clamp(float(data.get("step_penalty", 0)), -500, 500),
+            "damage_penalty": _clamp(float(data.get("damage_penalty", 0)), -500, 500),
+            "ammo_penalty": _clamp(float(data.get("ammo_penalty", 0)), -500, 500),
         }
 
         # Save session to history
@@ -384,6 +449,10 @@ def handle_start_demo(data):
             emit("demo_status", {"session_id": session_id, "status": "failed", "error": "Model not found"})
             return
 
+        if not _is_safe_model_path(model_path):
+            emit("demo_status", {"session_id": session_id, "status": "failed", "error": "Invalid model path"})
+            return
+
         p = get_player()
         p.start_demo(session_id, model_path, scenario_key, speed,
                      saliency_mode=saliency_mode,
@@ -453,6 +522,10 @@ def handle_start_mindmap(data):
             emit("mindmap_status", {"session_id": session_id, "status": "error", "error": "Model not found"})
             return
 
+        if not _is_safe_model_path(model_path):
+            emit("mindmap_status", {"session_id": session_id, "status": "error", "error": "Invalid model path"})
+            return
+
         mm = get_mindmap()
         mm.start(session_id, model_path, scenario_key, speed)
         emit("mindmap_status", {"session_id": session_id, "status": "started"})
@@ -494,6 +567,10 @@ def handle_start_evaluation(data):
 
         if not model_path or not os.path.exists(model_path):
             emit("evaluation_result", {"error": "Model not found"})
+            return
+
+        if not _is_safe_model_path(model_path):
+            emit("evaluation_result", {"error": "Invalid model path"})
             return
 
         def run_eval():

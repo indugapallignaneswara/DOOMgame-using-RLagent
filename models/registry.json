@@ -143,6 +143,204 @@
       "created_at": "2026-04-11T22:23:28.972549",
       "mean_reward": 88.48,
       "total_episodes": 19050
+    },
+    {
+      "id": "d513260c",
+      "name": "ppo_noshape_basic",
+      "scenario": "basic",
+      "algo": "ppo",
+      "reward_shaping": false,
+      "path": "",
+      "wandb_artifact": "ppo_basic_final",
+      "description": "PPO agent on basic WITHOUT reward shaping.",
+      "hyperparams": {
+        "learning_rate": 0.0001,
+        "n_steps": 2048,
+        "clip_range": 0.2,
+        "gamma": 0.99,
+        "gae_lambda": 0.95
+      },
+      "total_timesteps": 100000,
+      "created_at": "2026-05-03T00:00:00",
+      "mean_reward": 79.9,
+      "total_episodes": 0,
+      "source": "wandb"
+    },
+    {
+      "id": "f7867a3f",
+      "name": "ppo_noshape_defend_the_line",
+      "scenario": "defend_the_line",
+      "algo": "ppo",
+      "reward_shaping": false,
+      "path": "",
+      "wandb_artifact": "ppo_defend_the_line_final",
+      "description": "PPO agent on defend_the_line WITHOUT reward shaping.",
+      "hyperparams": {
+        "learning_rate": 0.0001,
+        "n_steps": 2048,
+        "clip_range": 0.2,
+        "gamma": 0.99,
+        "gae_lambda": 0.95
+      },
+      "total_timesteps": 100000,
+      "created_at": "2026-05-03T00:00:00",
+      "mean_reward": 20.3,
+      "total_episodes": 0,
+      "source": "wandb"
+    },
+    {
+      "id": "dd6c9018",
+      "name": "ppo_noshape_defend_the_center",
+      "scenario": "defend_the_center",
+      "algo": "ppo",
+      "reward_shaping": false,
+      "path": "",
+      "wandb_artifact": "ppo_defend_the_center_final",
+      "description": "PPO agent on defend_the_center WITHOUT reward shaping.",
+      "hyperparams": {
+        "learning_rate": 0.0001,
+        "n_steps": 2048,
+        "clip_range": 0.2,
+        "gamma": 0.99,
+        "gae_lambda": 0.95
+      },
+      "total_timesteps": 100000,
+      "created_at": "2026-05-03T00:00:00",
+      "mean_reward": 12.6,
+      "total_episodes": 0,
+      "source": "wandb"
+    },
+    {
+      "id": "d8258b42",
+      "name": "ppo_noshape_take_cover",
+      "scenario": "take_cover",
+      "algo": "ppo",
+      "reward_shaping": false,
+      "path": "",
+      "wandb_artifact": "ppo_take_cover_final",
+      "description": "PPO agent on take_cover WITHOUT reward shaping.",
+      "hyperparams": {
+        "learning_rate": 0.0001,
+        "n_steps": 2048,
+        "clip_range": 0.2,
+        "gamma": 0.99,
+        "gae_lambda": 0.95
+      },
+      "total_timesteps": 100000,
+      "created_at": "2026-05-03T00:00:00",
+      "mean_reward": 274.8,
+      "total_episodes": 0,
+      "source": "wandb"
+    },
+    {
+      "id": "e6e9e9d7",
+      "name": "ppo_noshape_health_gathering",
+      "scenario": "health_gathering",
+      "algo": "ppo",
+      "reward_shaping": false,
+      "path": "",
+      "wandb_artifact": "ppo_health_gathering_final",
+      "description": "PPO agent on health_gathering WITHOUT reward shaping.",
+      "hyperparams": {
+        "learning_rate": 0.0001,
+        "n_steps": 2048,
+        "clip_range": 0.2,
+        "gamma": 0.99,
+        "gae_lambda": 0.95
+      },
+      "total_timesteps": 100000,
+      "created_at": "2026-05-03T00:00:00",
+      "mean_reward": 315.7,
+      "total_episodes": 0,
+      "source": "wandb"
+    },
+    {
+      "id": "d239c275",
+      "name": "ppo_noshape_my_way_home",
+      "scenario": "my_way_home",
+      "algo": "ppo",
+      "reward_shaping": false,
+      "path": "",
+      "wandb_artifact": "ppo_my_way_home_final",
+      "description": "PPO agent on my_way_home WITHOUT reward shaping.",
+      "hyperparams": {
+        "learning_rate": 0.0001,
+        "n_steps": 2048,
+        "clip_range": 0.2,
+        "gamma": 0.99,
+        "gae_lambda": 0.95
+      },
+      "total_timesteps": 200000,
+      "created_at": "2026-05-03T00:00:00",
+      "mean_reward": 0.1,
+      "total_episodes": 0,
+      "source": "wandb"
+    },
+    {
+      "id": "0de47ea0",
+      "name": "ppo_noshape_deadly_corridor_s1",
+      "scenario": "deadly_corridor_s1",
+      "algo": "ppo",
+      "reward_shaping": false,
+      "path": "",
+      "wandb_artifact": "ppo_deadly_corridor_s1_final",
+      "description": "PPO agent on deadly_corridor_s1 WITHOUT reward shaping.",
+      "hyperparams": {
+        "learning_rate": 0.0001,
+        "n_steps": 8192,
+        "clip_range": 0.1,
+        "gamma": 0.95,
+        "gae_lambda": 0.9
+      },
+      "total_timesteps": 400000,
+      "created_at": "2026-05-03T00:00:00",
+      "mean_reward": 2070.9,
+      "total_episodes": 0,
+      "source": "wandb"
+    },
+    {
+      "id": "39d091e5",
+      "name": "ppo_noshape_deadly_corridor_s3",
+      "scenario": "deadly_corridor_s3",
+      "algo": "ppo",
+      "reward_shaping": false,
+      "path": "",
+      "wandb_artifact": "ppo_deadly_corridor_s3_final",
+      "description": "PPO agent on deadly_corridor_s3 WITHOUT reward shaping.",
+      "hyperparams": {
+        "learning_rate": 0.0001,
+        "n_steps": 8192,
+        "clip_range": 0.1,
+        "gamma": 0.95,
+        "gae_lambda": 0.9
+      },
+      "total_timesteps": 400000,
+      "created_at": "2026-05-03T00:00:00",
+      "mean_reward": 1210.8,
+      "total_episodes": 0,
+      "source": "wandb"
+    },
+    {
+      "id": "946af9a7",
+      "name": "ppo_noshape_deadly_corridor_s5",
+      "scenario": "deadly_corridor_s5",
+      "algo": "ppo",
+      "reward_shaping": false,
+      "path": "",
+      "wandb_artifact": "ppo_deadly_corridor_s5_final",
+      "description": "PPO agent on deadly_corridor_s5 WITHOUT reward shaping.",
+      "hyperparams": {
+        "learning_rate": 0.0001,
+        "n_steps": 8192,
+        "clip_range": 0.1,
+        "gamma": 0.95,
+        "gae_lambda": 0.9
+      },
+      "total_timesteps": 400000,
+      "created_at": "2026-05-03T00:00:00",
+      "mean_reward": 223.0,
+      "total_episodes": 0,
+      "source": "wandb"
     }
   ]
 }

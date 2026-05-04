@@ -26,6 +26,7 @@ import io
 import logging
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 import cv2
 import numpy as np
@@ -126,6 +127,7 @@ class AIPlayer:
         self.socketio = socketio
         self.active_demos = {}
         self._lock = threading.Lock()
+        self._encode_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="jpeg")
 
     def start_demo(self, session_id, model_path, scenario_key, speed=0.05,
                    saliency_mode: str = "off",
@@ -343,29 +345,40 @@ class AIPlayer:
 
                     raw_frame = env.get_raw_frame()
                     if raw_frame is not None:
-                        frame_jpg = self._encode_frame(raw_frame)
-                        payload = {
-                            "session_id": session_id,
-                            "frame": frame_jpg,
-                            "reward": round(float(reward), 2),
-                            "total_reward": round(float(total_reward), 2),
-                            "step": step,
-                            "episode": episode,
-                            "done": done,
-                            "action": action_int,
-                            "action_name": action_name,
-                            "buttons": button_names,
-                            "info": {k: round(float(v), 1) if isinstance(v, (int, float)) else v
-                                     for k, v in info.items()},
-                            "saliency_mode": sal_mode,
-                        }
-                        if saliency_png is not None:
-                            payload["saliency_png"] = saliency_png
-                        if action_probs is not None:
-                            payload["action_probs"] = [round(p, 4) for p in action_probs]
-                        if value_est is not None:
-                            payload["value"] = round(value_est, 4)
-                        self.socketio.emit("game_frame", payload)
+                        # Build payload skeleton; JPEG encode off the
+                        # env-step thread so the next step isn't blocked.
+                        _sal_png = saliency_png
+                        _aprobs = [round(p, 4) for p in action_probs] if action_probs is not None else None
+                        _val = round(value_est, 4) if value_est is not None else None
+                        _info = {k: round(float(v), 1) if isinstance(v, (int, float)) else v
+                                 for k, v in info.items()}
+
+                        def _emit_frame(frame_rgb, sid, sal, ap, ve, inf,
+                                        rew, t_rew, st, ep, dn, act, aname, btns, sm):
+                            jpg = self._encode_frame(frame_rgb)
+                            payload = {
+                                "session_id": sid, "frame": jpg,
+                                "reward": rew, "total_reward": t_rew,
+                                "step": st, "episode": ep, "done": dn,
+                                "action": act, "action_name": aname,
+                                "buttons": btns, "info": inf,
+                                "saliency_mode": sm,
+                            }
+                            if sal is not None:
+                                payload["saliency_png"] = sal
+                            if ap is not None:
+                                payload["action_probs"] = ap
+                            if ve is not None:
+                                payload["value"] = ve
+                            self.socketio.emit("game_frame", payload)
+
+                        self._encode_pool.submit(
+                            _emit_frame, raw_frame.copy(), session_id,
+                            _sal_png, _aprobs, _val, _info,
+                            round(float(reward), 2), round(float(total_reward), 2),
+                            step, episode, done, action_int, action_name,
+                            button_names, sal_mode,
+                        )
 
                     with self._lock:
                         current_speed = self.active_demos.get(session_id, {}).get("speed", speed)

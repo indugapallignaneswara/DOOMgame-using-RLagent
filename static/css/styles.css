@@ -1934,3 +1934,277 @@ td .mono {
 }
 .prediction-reveal.correct { color: var(--success); }
 .prediction-reveal.wrong { color: var(--danger); }
+
+/* ============================================================
+   LESSONS PAGE
+   ============================================================ */
+
+.lesson-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.lesson-tab {
+  padding: 10px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.lesson-tab:hover {
+  border-color: var(--primary);
+  color: var(--text);
+}
+.lesson-tab.active {
+  background: var(--primary-dim);
+  border-color: var(--primary);
+  color: var(--primary);
+  font-weight: 600;
+}
+.lesson-panel {
+  display: none;
+}
+.lesson-panel.active {
+  display: block;
+}
+.lesson-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.lesson-controls label {
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+.lesson-controls .form-select {
+  padding: 8px 14px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  min-width: 220px;
+}
+.lesson-controls .form-select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* Compare Cards Grid */
+.lesson-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.compare-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+.compare-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+.compare-card-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-light);
+}
+.compare-card-header h3 {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  letter-spacing: 0.05em;
+}
+.compare-card-body {
+  padding: 20px 16px;
+  text-align: center;
+}
+.compare-reward {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.compare-reward.dim {
+  opacity: 0.3;
+}
+.compare-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* Chart container */
+.chart-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+/* Insight Box */
+.insight-box {
+  background: rgba(255, 68, 0, 0.06);
+  border: 1px solid rgba(255, 68, 0, 0.2);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  margin-bottom: 24px;
+}
+.insight-box h3 {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  color: var(--primary);
+  margin-bottom: 12px;
+}
+.insight-box ul {
+  list-style: disc;
+  padding-left: 20px;
+}
+.insight-box li {
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.insight-box li strong {
+  color: var(--text);
+}
+
+/* Data Table */
+.data-table-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+}
+.data-table-container h3 {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.data-table th {
+  padding: 10px 14px;
+  text-align: left;
+  color: var(--text-muted);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-light);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.data-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+.data-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+.delta-positive {
+  color: var(--success) !important;
+  font-weight: 600;
+}
+.delta-negative {
+  color: var(--danger) !important;
+  font-weight: 600;
+}
+
+/* Reward Hacking Gallery */
+.hacking-gallery {
+  display: grid;
+  gap: 20px;
+}
+.hacking-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.hacking-card-header {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--border-light);
+}
+.hacking-card-header h3 {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--text);
+}
+.hacking-tag {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+.hacking-tag.danger {
+  background: rgba(255, 34, 68, 0.15);
+  color: var(--danger);
+  border: 1px solid rgba(255, 34, 68, 0.3);
+}
+.hacking-tag.warning {
+  background: rgba(255, 170, 0, 0.15);
+  color: var(--warning);
+  border: 1px solid rgba(255, 170, 0, 0.3);
+}
+.hacking-tag.success {
+  background: rgba(0, 255, 157, 0.15);
+  color: var(--success);
+  border: 1px solid rgba(0, 255, 157, 0.3);
+}
+.hacking-card-body {
+  padding: 20px;
+}
+.hacking-card-body p {
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+.hacking-explanation {
+  margin-top: 12px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius);
+  border-left: 3px solid var(--primary);
+}
+.hacking-explanation p {
+  line-height: 1.6;
+}
+.lesson-moral {
+  margin-top: 10px !important;
+  padding: 10px 14px;
+  background: rgba(255, 68, 0, 0.08);
+  border-radius: var(--radius);
+  color: var(--text) !important;
+  font-size: 0.85rem !important;
+}
+.lesson-moral i {
+  color: var(--warning);
+  margin-right: 6px;
+}
