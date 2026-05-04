@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% block title %}Mind Map{% endblock %}
+
+{% block content %}
+<div class="animate-slideIn">
+
+    <div class="page-header flex-between">
+        <div>
+            <h2><i class="fas fa-project-diagram text-primary"></i> Mind Map</h2>
+            <p>See what your AI thinks in real-time</p>
+        </div>
+        <div class="btn-group">
+            <select class="form-control" id="mmModelSelect" style="width:220px;">
+                <option value="">Loading models...</option>
+            </select>
+            <button class="btn btn-primary" id="btnStartMM"><i class="fas fa-eye"></i> Launch</button>
+            <button class="btn btn-danger" id="btnStopMM" disabled><i class="fas fa-stop"></i> Stop</button>
+        </div>
+    </div>
+
+    <!-- Main Layout: Game + Panels -->
+    <div class="mm-layout">
+        <!-- Left: Game Canvas -->
+        <div class="mm-game-col">
+            <div class="card mm-game-card">
+                <div class="mm-canvas-wrap">
+                    <canvas id="mmCanvas" width="640" height="480"></canvas>
+                    <div class="mm-overlay" id="mmOverlay">Select a model and press Launch</div>
+                    <!-- Grad-CAM overlay -->
+                    <canvas id="mmGradCamCanvas" width="640" height="480" class="mm-gradcam-canvas"></canvas>
+                </div>
+                <div class="mm-game-bar">
+                    <span class="mm-stat"><i class="fas fa-running"></i> <span id="mmAction">--</span></span>
+                    <span class="mm-stat"><i class="fas fa-star"></i> Reward: <span id="mmReward">0</span></span>
+                    <span class="mm-stat"><i class="fas fa-shoe-prints"></i> Step: <span id="mmStep">0</span></span>
+                    <span class="mm-stat"><i class="fas fa-flag"></i> Ep: <span id="mmEpisode">0</span></span>
+                    <label class="mm-toggle"><input type="checkbox" id="mmGradCamToggle" checked> Grad-CAM</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Insight Panels -->
+        <div class="mm-insight-col">
+            <!-- Tab Bar -->
+            <div class="mm-tabs">
+                <button class="mm-tab active" data-tab="xray"><i class="fas fa-atom"></i> X-Ray</button>
+                <button class="mm-tab" data-tab="decision"><i class="fas fa-brain"></i> Decision</button>
+                <button class="mm-tab" data-tab="attention"><i class="fas fa-crosshairs"></i> Attention</button>
+                <button class="mm-tab" data-tab="timeline"><i class="fas fa-stream"></i> Timeline</button>
+            </div>
+
+            <!-- Tab: Neural X-Ray -->
+            <div class="mm-panel" id="panelXray">
+                <!-- AI Reasoning Summary -->
+                <div class="mm-reasoning-box" id="mmReasoning">
+                    <div class="mm-reasoning-icon"><i class="fas fa-robot"></i></div>
+                    <div class="mm-reasoning-text" id="mmReasoningText">Waiting for data...</div>
+                </div>
+
+                <div class="mm-xray-flow">
+                    <!-- Stage 1: Raw Input -->
+                    <div class="mm-xray-stage">
+                        <div class="mm-xray-stage-header">
+                            <span class="mm-stage-num">1</span>
+                            <div>
+                                <div class="mm-xray-label">Raw Pixels</div>
+                                <div class="mm-xray-explain">What the agent sees — grayscale 100x160 game frame</div>
+                            </div>
+                        </div>
+                        <canvas id="mmInputPreview" width="120" height="75" class="mm-xray-thumb"></canvas>
+                    </div>
+
+                    <div class="mm-xray-arrow"><i class="fas fa-chevron-down"></i> <span class="mm-arrow-label">8x8 filters detect basic patterns</span></div>
+
+                    <!-- Stage 2: Edge Detection -->
+                    <div class="mm-xray-stage">
+                        <div class="mm-xray-stage-header">
+                            <span class="mm-stage-num">2</span>
+                            <div>
+                                <div class="mm-xray-label">Edge Detection <span class="text-muted">(32 filters, 8x8)</span></div>
+                                <div class="mm-xray-explain">Finds edges, lines, and basic textures — like an eye detecting outlines</div>
+                            </div>
+                        </div>
+                        <canvas id="mmConv1Map" width="200" height="24" class="mm-xray-heatbar"></canvas>
+                        <div class="mm-layer-stats">
+                            <span>Active: <strong id="mmConv1Active">--</strong>/32</span>
+                            <span>Peak: <strong id="mmConv1Peak">--</strong></span>
+                        </div>
+                    </div>
+
+                    <div class="mm-xray-arrow"><i class="fas fa-chevron-down"></i> <span class="mm-arrow-label">Combines edges into shapes</span></div>
+
+                    <!-- Stage 3: Shape Recognition -->
+                    <div class="mm-xray-stage">
+                        <div class="mm-xray-stage-header">
+                            <span class="mm-stage-num">3</span>
+                            <div>
+                                <div class="mm-xray-label">Shape Recognition <span class="text-muted">(64 filters, 4x4)</span></div>
+                                <div class="mm-xray-explain">Combines edges into shapes — walls, corridors, enemy silhouettes</div>
+                            </div>
+                        </div>
+                        <canvas id="mmConv2Map" width="200" height="24" class="mm-xray-heatbar"></canvas>
+                        <div class="mm-layer-stats">
+                            <span>Active: <strong id="mmConv2Active">--</strong>/64</span>
+                            <span>Peak: <strong id="mmConv2Peak">--</strong></span>
+                        </div>
+                    </div>
+
+                    <div class="mm-xray-arrow"><i class="fas fa-chevron-down"></i> <span class="mm-arrow-label">Recognizes objects and threats</span></div>
+
+                    <!-- Stage 4: Object Recognition -->
+                    <div class="mm-xray-stage">
+                        <div class="mm-xray-stage-header">
+                            <span class="mm-stage-num">4</span>
+                            <div>
+                                <div class="mm-xray-label">Object Recognition <span class="text-muted">(64 filters, 3x3)</span></div>
+                                <div class="mm-xray-explain">Identifies enemies, health packs, weapons — what matters for survival</div>
+                            </div>
+                        </div>
+                        <canvas id="mmConv3Map" width="200" height="24" class="mm-xray-heatbar"></canvas>
+                        <div class="mm-layer-stats">
+                            <span>Active: <strong id="mmConv3Active">--</strong>/64</span>
+                            <span>Peak: <strong id="mmConv3Peak">--</strong></span>
+                        </div>
+                    </div>
+
+                    <div class="mm-xray-arrow"><i class="fas fa-chevron-down"></i> <span class="mm-arrow-label">Compresses into 512 features → decision</span></div>
+
+                    <!-- Stage 5: What It Found -->
+                    <div class="mm-xray-stage">
+                        <div class="mm-xray-stage-header">
+                            <span class="mm-stage-num">5</span>
+                            <div>
+                                <div class="mm-xray-label">What It Found</div>
+                                <div class="mm-xray-explain">Top 8 most active detectors right now — these drove the decision</div>
+                            </div>
+                        </div>
+                        <div class="mm-channel-grid" id="mmChannelGrid"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Decision -->
+            <div class="mm-panel hidden" id="panelDecision">
+                <!-- Decision Summary -->
+                <div class="mm-reasoning-box mm-decision-summary" id="mmDecisionSummary">
+                    <div class="mm-reasoning-icon"><i class="fas fa-gavel"></i></div>
+                    <div class="mm-reasoning-text" id="mmDecisionText">Waiting for data...</div>
+                </div>
+
+                <!-- Action Probabilities -->
+                <div class="mm-section">
+                    <div class="mm-section-label">Action Probabilities — How likely each action is</div>
+                    <div id="mmActionBars" class="mm-action-bars"></div>
+                </div>
+                <!-- Value & Confidence -->
+                <div class="mm-decision-row">
+                    <div class="mm-decision-card">
+                        <div class="mm-decision-label">Optimism Score</div>
+                        <div class="mm-decision-explain">How good does the agent think this situation is?</div>
+                        <div class="mm-decision-value" id="mmValue">0.00</div>
+                        <canvas id="mmValueSpark" width="140" height="30" class="mm-spark"></canvas>
+                    </div>
+                    <div class="mm-decision-card">
+                        <div class="mm-decision-label">Certainty</div>
+                        <div class="mm-decision-explain">How sure is the agent about its choice?</div>
+                        <div class="mm-confidence-bar">
+                            <div class="mm-confidence-fill" id="mmConfidence"></div>
+                        </div>
+                        <div class="mm-decision-sub">Entropy: <span id="mmEntropy">0.00</span></div>
+                    </div>
+                </div>
+                <!-- Top Alternatives -->
+                <div class="mm-section">
+                    <div class="mm-section-label">What It Almost Did Instead</div>
+                    <div class="mm-alternatives" id="mmAlternatives"></div>
+                </div>
+            </div>
+
+            <!-- Tab: Attention -->
+            <div class="mm-panel hidden" id="panelAttention">
+                <div class="mm-attention-grid">
+                    <div class="mm-attention-cell">
+                        <div class="mm-section-label">Raw Frame</div>
+                        <canvas id="mmAttRaw" width="200" height="150" class="mm-att-canvas"></canvas>
+                    </div>
+                    <div class="mm-attention-cell">
+                        <div class="mm-section-label">Grad-CAM Overlay</div>
+                        <canvas id="mmAttCam" width="200" height="150" class="mm-att-canvas"></canvas>
+                    </div>
+                </div>
+                <div class="mm-section mt-2">
+                    <div class="mm-section-label">Activation Heatmaps</div>
+                    <div class="mm-act-row">
+                        <div class="mm-act-cell">
+                            <span>Conv1</span>
+                            <canvas id="mmAttConv1" width="80" height="60" class="mm-att-mini"></canvas>
+                        </div>
+                        <div class="mm-act-cell">
+                            <span>Conv2</span>
+                            <canvas id="mmAttConv2" width="80" height="60" class="mm-att-mini"></canvas>
+                        </div>
+                        <div class="mm-act-cell">
+                            <span>Conv3</span>
+                            <canvas id="mmAttConv3" width="80" height="60" class="mm-att-mini"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="mm-section mt-2">
+                    <div class="mm-section-label">Attention Trail</div>
+                    <div class="mm-trail-legend">
+                        <span class="mm-trail-dot"></span> Where the AI is looking (last 30 frames)
+                        <span class="mm-critical-dot"></span> Critical decision shift
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Timeline Heatmap -->
+            <div class="mm-panel hidden" id="panelTimeline">
+                <div class="mm-section">
+                    <div class="mm-section-label">Neural Activity Over Time</div>
+                    <div class="mm-timeline-legend">
+                        <span>Low</span>
+                        <div class="mm-timeline-gradient"></div>
+                        <span>High</span>
+                    </div>
+                    <canvas id="mmTimelineCanvas" width="400" height="200" class="mm-timeline-canvas"></canvas>
+                </div>
+                <div class="mm-section mt-2">
+                    <div class="mm-section-label">Action Sequence</div>
+                    <canvas id="mmActionTimeline" width="400" height="30" class="mm-timeline-canvas"></canvas>
+                </div>
+                <div class="mm-section mt-2">
+                    <div class="mm-section-label">Value / Reward Trace</div>
+                    <canvas id="mmValueTimeline" width="400" height="80" class="mm-timeline-canvas"></canvas>
+                </div>
+                <div class="mm-section mt-2">
+                    <div class="mm-section-label">
+                        <i class="fas fa-bolt" style="color:var(--warning);"></i> Critical Moments
+                        <span class="text-muted">(policy shift KL &gt; 0.5)</span>
+                    </div>
+                    <div id="mmCriticalMoments" class="mm-critical-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script src="{{ url_for('static', filename='js/mindmap.js') }}"></script>
+{% endblock %}

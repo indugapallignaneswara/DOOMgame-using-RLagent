@@ -21,6 +21,7 @@ socketio = SocketIO(app, async_mode="threading", cors_allowed_origins="*")
 # Late imports to avoid circular deps - initialized after app starts
 trainer = None
 player = None
+mindmap_player = None
 
 def get_trainer():
     global trainer
@@ -35,6 +36,13 @@ def get_player():
         from doom.player import AIPlayer
         player = AIPlayer(socketio)
     return player
+
+def get_mindmap():
+    global mindmap_player
+    if mindmap_player is None:
+        from doom.mindmap import MindMapPlayer
+        mindmap_player = MindMapPlayer(socketio)
+    return mindmap_player
 
 # ─── Model Registry Helpers ───
 
@@ -126,6 +134,10 @@ def models_page():
 @app.route("/evaluate")
 def evaluate_page():
     return render_template("evaluate.html")
+
+@app.route("/mindmap")
+def mindmap_page():
+    return render_template("mindmap.html")
 
 # ─── API Routes ───
 
@@ -419,6 +431,41 @@ def handle_stop_demo(data):
     if session_id:
         get_player().stop_demo(session_id)
         emit("demo_status", {"session_id": session_id, "status": "stopped"})
+
+@socketio.on("start_mindmap")
+def handle_start_mindmap(data):
+    try:
+        session_id = str(uuid.uuid4())[:8]
+        model_id = data.get("model_id", "")
+        scenario_key = data.get("scenario", "basic")
+        speed = float(data.get("speed", 0.05))
+
+        model_path = ""
+        if model_id:
+            registry = load_registry()
+            for m in registry["models"]:
+                if m["id"] == model_id:
+                    model_path = m["path"]
+                    scenario_key = m.get("scenario", scenario_key)
+                    break
+
+        if not model_path or not os.path.exists(model_path):
+            emit("mindmap_status", {"session_id": session_id, "status": "error", "error": "Model not found"})
+            return
+
+        mm = get_mindmap()
+        mm.start(session_id, model_path, scenario_key, speed)
+        emit("mindmap_status", {"session_id": session_id, "status": "started"})
+
+    except Exception as e:
+        logger.error(f"Mind Map start failed: {e}")
+        emit("mindmap_status", {"session_id": "", "status": "error", "error": str(e)})
+
+@socketio.on("stop_mindmap")
+def handle_stop_mindmap(data):
+    session_id = data.get("session_id")
+    if session_id:
+        get_mindmap().stop(session_id)
 
 @socketio.on("set_demo_speed")
 def handle_set_demo_speed(data):
